@@ -1,0 +1,230 @@
+# 鉴宝后端服务 CI/CD 流水线
+# GitHub Actions 负责 CI (构建、测试、推送镜像)
+# ArgoCD 负责 CD (部署到 K8s)
+
+name: Backend CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'src/**'
+      - 'requirements.txt'
+      - 'Dockerfile'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'requirements.txt'
+      - 'Dockerfile'
+
+env:
+  # 腾讯云镜像仓库配置
+  REGISTRY: ccr.ccs.tencentyun.com
+  NAMESPACE: jianbao
+  IMAGE_NAME: backend
+  
+  # K8s配置文件路径
+  K8S_CONFIG_PATH: k8s/
+
+jobs:
+  # ================================
+  # 阶段1: 代码质量检查
+  # ================================
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 设置Python环境
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+        
+    - name: 安装依赖
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install flake8 black isort pytest-cov
+        
+    - name: 代码格式检查
+      run: |
+        # 代码格式化检查
+        black --check --diff src/
+        
+        # 导入排序检查
+        isort --check-only --diff src/
+        
+        # 代码规范检查
+        flake8 src/ --max-line-length=88 --extend-ignore=E203,W503
+        
+    - name: 运行单元测试
+      run: |
+        pytest tests/ -v --cov=src --cov-report=xml --cov-report=html
+        
+    - name: 上传测试覆盖率
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: true
+
+  # ================================
+  # 阶段2: 安全扫描
+  # ================================
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 依赖安全扫描
+      uses: pypa/gh-action-pip-audit@v1.0.8
+      with:
+        inputs: requirements.txt
+        
+    - name: 代码安全扫描
+      uses: github/codeql-action/init@v2
+      with:
+        languages: python
+        
+    - name: 执行CodeQL分析
+      uses: github/codeql-action/analyze@v2
+
+  # ================================
+  # 阶段3: Docker镜像构建和推送
+  # ================================
+  build-and-push:
+    needs: [code-quality, security-scan]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 设置Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: 登录腾讯云容器镜像服务
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ secrets.TCR_USERNAME }}
+        password: ${{ secrets.TCR_PASSWORD }}
+        
+    - name: 提取镜像元数据
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: 构建并推送Docker镜像
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        build-args: |
+          BUILD_DATE=${{ github.event.head_commit.timestamp }}
+          VCS_REF=${{ github.sha }}
+          VERSION=${{ github.ref_name }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
+        
+    - name: 生成镜像安全报告
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-${{ github.sha }}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: 上传安全扫描结果
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # ================================
+  # 阶段4: 更新K8s配置触发ArgoCD部署
+  # ================================
+  update-k8s-config:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: 更新部署配置中的镜像版本
+      run: |
+        # 获取新的镜像标签
+        NEW_IMAGE="${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}:main-${{ github.sha }}"
+        
+        # 更新生产环境部署配置
+        sed -i "s|image:.*|image: ${NEW_IMAGE}|g" ${{ env.K8S_CONFIG_PATH }}deployment.yaml
+        
+        # 更新简化版部署配置
+        sed -i "s|image:.*|image: ${NEW_IMAGE}|g" ${{ env.K8S_CONFIG_PATH }}deployment-simple.yaml
+        
+        echo "Updated image to: ${NEW_IMAGE}"
+        
+    - name: 提交配置变更
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        git add ${{ env.K8S_CONFIG_PATH }}deployment.yaml
+        git add ${{ env.K8S_CONFIG_PATH }}deployment-simple.yaml
+        
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "ci: update image to main-${{ github.sha }}
+          
+          - Update deployment image tag
+          - Trigger ArgoCD sync
+          - Built from commit: ${{ github.sha }}
+          
+          Co-authored-by: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>"
+          
+          git push
+        fi
+
+  # ================================
+  # 阶段5: 通知和清理
+  # ================================
+  notify:
+    needs: [build-and-push, update-k8s-config]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+    - name: 发送构建通知
+      uses: 8398a7/action-slack@v3
+      if: always()
+      with:
+        status: ${{ job.status }}
+        channel: '#devops'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        fields: repo,message,commit,author,action,eventName,ref,workflow
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+        
+    - name: 清理旧镜像（可选）
+      if: success()
+      run: |
+        echo "可以在这里添加清理旧镜像的逻辑"
+        echo "保留最近10个版本，删除更早的镜像"

@@ -123,7 +123,39 @@ jianbao-backend-deployment/
 - **Logging**: ELK Stack
 - **Alerting**: AlertManager + 企业微信
 
-## 🚀 快速开始（按量付费模式）
+## 🚀 部署方案选择
+
+### 🎯 **方案一：GitHub Actions + ArgoCD（推荐）**
+
+**现代化GitOps CI/CD流水线，替代即将下线的CODING DevOps：**
+
+```bash
+# 1. 快速部署ArgoCD
+chmod +x scripts/deploy-argocd.sh
+./scripts/deploy-argocd.sh
+
+# 2. 配置Secrets和权限
+kubectl apply -f k8s/secrets.yaml
+kubectl apply -f k8s/serviceaccount.yaml
+
+# 3. 创建ArgoCD应用
+kubectl apply -f argocd/application.yaml
+```
+
+**🔥 核心优势：**
+- ✅ **GitHub Actions**: 代码检查 → 构建镜像 → 推送TCR
+- ✅ **ArgoCD**: 检测变更 → 自动部署 → 状态监控  
+- ✅ **GitOps**: 声明式配置 + 自动同步
+- ✅ **零停机**: 滚动更新 + 自动回滚
+- ✅ **免费**: GitHub Actions免费额度 + ArgoCD开源
+
+📖 **完整配置指南**: [GitHub Actions + ArgoCD 设置文档](docs/github-actions-argocd-setup.md)
+
+---
+
+### 🔧 **方案二：CODING DevOps（即将下线）**
+
+⚠️ **重要提醒**: CODING DevOps将于2025年9月1日下线标准版，建议迁移到方案一。
 
 ### 1. 环境准备
 ```bash
