@@ -1,0 +1,62 @@
+# Python FastAPI 后端服务配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jianbao-backend-config
+  namespace: jianbao-system
+  labels:
+    app: jianbao-backend
+data:
+  # 应用配置
+  app.yaml: |
+    app:
+      name: "jianbao-backend"
+      version: "1.0.0"
+      debug: false
+      
+    server:
+      host: "0.0.0.0"
+      port: 8000
+      workers: 4
+      
+    logging:
+      level: "INFO"
+      format: "json"
+      
+    cors:
+      allow_origins:
+        - "https://admin.kaimen.site"
+        - "https://*.jianbao.com"
+      allow_methods:
+        - "GET"
+        - "POST"
+        - "PUT"
+        - "DELETE"
+        - "OPTIONS"
+      allow_headers:
+        - "*"
+      allow_credentials: true
+      
+        
+  # Celery配置
+  celery.yaml: |
+    broker_url: "redis://redis:6379/1"
+    result_backend: "redis://redis:6379/2"
+    task_serializer: "json"
+    accept_content: ["json"]
+    result_serializer: "json"
+    timezone: "Asia/Shanghai"
+    enable_utc: true
+    
+    task_routes:
+      "tasks.image.*": {"queue": "image_queue"}
+      "tasks.video.*": {"queue": "video_queue"}
+      "tasks.notification.*": {"queue": "notification_queue"}
+      
+    worker_prefetch_multiplier: 1
+    task_acks_late: true
+    worker_disable_rate_limits: false
+    
+    task_soft_time_limit: 300
+    task_time_limit: 600
+    
