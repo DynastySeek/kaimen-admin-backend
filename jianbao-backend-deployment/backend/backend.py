@@ -4,7 +4,7 @@ from typing import Optional , List
 from datetime import datetime, timedelta, timezone
 from models import User, LoginRequest, LoginResponse, BatchDetailRequest, Appraisal, UserInfo, \
                     BatchDetailResponse , AppraisalResource, AppraisalResult, AppraisalUpdateItem, OrderUpdateResult, \
-                    OrderUpdateResponse, AppraisalResultBatchRequest, BatchAddResultResponse, BatchAddResultData, FailedItem
+                    OrderUpdateResponse, AppraisalResultBatchRequest, BatchAddResultResponse, BatchAddResultData, FailedItem, AppraisalResultResponse
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 import jwt
@@ -245,8 +245,19 @@ def get_batch_appraisal_detail(
 
         appraisal_data = {}
         if latest_appraisal_result:
+            # 🔹 查询鉴定师名称
+            user_name = None
+            if latest_appraisal_result.user_id:
+                user_stmt = (
+                    select(User.name)
+                    .where(User.id == latest_appraisal_result.user_id)
+                    .limit(1)
+                )
+                user_name = session.exec(user_stmt).first()
+
             appraisal_data = {
                 "id": str(latest_appraisal_result.id),
+                "user_name": user_name or "",
                 "user_id": str(latest_appraisal_result.user_id),
                 "create_time": latest_appraisal_result.created_at.strftime("%Y-%m-%d %H:%M:%S"),
                 "update_time": latest_appraisal_result.created_at.strftime("%Y-%m-%d %H:%M:%S"),
@@ -255,9 +266,9 @@ def get_batch_appraisal_detail(
                 "notes": latest_appraisal_result.notes or "",
                 "result": latest_appraisal_result.result,
                 "reasons": [],          # 如果有存疑/驳回原因字段，可填充
-                "custom_reason": ""     # 如果有自定义原因字段，可填充
+                "custom_reason": "",     # 如果有自定义原因字段，可填充
             }
-        
+
         # 🔹 查询用户手机号
         user_phone = None
         if o.userinfo_id:

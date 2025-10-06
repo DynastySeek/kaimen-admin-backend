@@ -95,6 +95,20 @@ class AppraisalResult(SQLModel, table=True):
     user_id: Optional[int] = Field(default=None, foreign_key="user.id")  # 鉴定师ID，可为空
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+
+class AppraisalResultResponse(SQLModel):
+    id: str
+    result: str
+    notes: Optional[str]
+    user_id: Optional[str]
+    user_name: Optional[str] = None
+    create_time: str
+    update_time: str
+    appraisal_status: Optional[int] = None
+    reasons: List[str] = []
+    custom_reason: str = ""
+
+
 # ------------------ 登录请求模型 ------------------
 class LoginRequest(BaseModel):
     username: str
@@ -115,11 +129,12 @@ class BatchDetailRequest(BaseModel):
 class AppraisalDetail(BaseModel):
     order_id: str
     title: Optional[str] = ""
+    user_phone: Optional[str] = ""
     description: Optional[str] = ""
     appraisal_class: Optional[str] = ""
     create_time: str
     # update_time: str
-    latest_appraisal: Optional[AppraisalResult] = None
+    latest_appraisal: Optional[AppraisalResultResponse] = None
 
 class BatchDetailResponse(BaseModel):
     code: int = 200
