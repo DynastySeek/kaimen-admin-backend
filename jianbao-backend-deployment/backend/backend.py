@@ -1,11 +1,12 @@
 from fastapi import FastAPI, HTTPException, Depends, Security, Query
-from sqlmodel import SQLModel, Session, create_engine, select, and_
+from sqlmodel import SQLModel, Session, create_engine, select, and_, true
 from typing import Optional , List
 from datetime import datetime, timedelta, timezone
-from models import User, Order, LoginRequest, LoginResponse, BatchDetailRequest, \
-                    BatchDetailResponse , Resource, AppraisalResult, AppraisalUpdateItem, OrderUpdateResult, \
+from models import User, LoginRequest, LoginResponse, BatchDetailRequest, Appraisal, UserInfo, \
+                    BatchDetailResponse , AppraisalResource, AppraisalResult, AppraisalUpdateItem, OrderUpdateResult, \
                     OrderUpdateResponse, AppraisalResultBatchRequest, BatchAddResultResponse, BatchAddResultData, FailedItem
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.middleware.cors import CORSMiddleware
 import jwt
 from jose import JWTError
 import json
@@ -34,6 +35,18 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 # ------------------ FastAPI 应用 ------------------
 app = FastAPI(title="Appraisal Management Platform", version="1.0")
+
+
+
+# CORS 配置
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://admin.kaimen.site"],
+    allow_origin_regex=r"https://.*\.jianbao\.com",
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 # ------------------ 初始化数据库 ------------------
 @app.on_event("startup")
@@ -121,77 +134,74 @@ def get_appraisal_list(
     pageSize: int = Query(20, ge=1),
     appraisalId: Optional[str] = None,
     title: Optional[str] = None,
-    appraisalClass: Optional[str] = None,
-    createStartTime: Optional[str] = None,
-    createEndTime: Optional[str] = None,
-    updateStartTime: Optional[str] = None,
-    updateEndTime: Optional[str] = None,
+    firstClass: Optional[str] = None,
+    appraisal_status: Optional[str] = None,
+    createTime: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
-    filters = [Order.deleted == False]
-
+    filters = []
 
     if appraisalId:
-        filters.append(Order.id == appraisalId)
+        filters.append(Appraisal.id == appraisalId)
     if title:
-        filters.append(Order.title.contains(title))
-    if appraisalClass:
-        filters.append(Order.appraisal_class == appraisalClass)
+        filters.append(Appraisal.title.contains(title))
+    if firstClass:
+        filters.append(Appraisal.first_class == firstClass)
+    if appraisal_status:
+        filters.append(Appraisal.appraisal_status == appraisal_status)
 
-    # 时间范围过滤
-    def parse_time(ts):
+    # 时间解析函数
+    def parse_time(ts: Optional[str]) -> Optional[int]:
         try:
-            return datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
+            return int(datetime.strptime(ts, "%Y-%m-%d %H:%M:%S").timestamp())
         except Exception:
             return None
 
-    if createStartTime and (t := parse_time(createStartTime)):
-        filters.append(Order.create_time >= t)
-    if createEndTime and (t := parse_time(createEndTime)):
-        filters.append(Order.create_time <= t)
-    if updateStartTime and (t := parse_time(updateStartTime)):
-        filters.append(Order.update_time >= t)
-    if updateEndTime and (t := parse_time(updateEndTime)):
-        filters.append(Order.update_time <= t)
+    if createTime and (t := parse_time(createTime)):
+        filters.append(Appraisal.appraisal_create_time >= t)
 
+    if not filters:
+        filters.append(true())
     # 查询总数
-    total = session.exec(select(func.count()).select_from(Order).where(and_(*filters))).one()
+    total = session.exec(
+        select(func.count()).select_from(Appraisal).where(and_(*filters))
+    ).one()
 
     # 分页查询
     stmt = (
-        select(Order)
+        select(Appraisal)
         .where(and_(*filters))
-        .order_by(Order.create_time.desc())
+        .order_by(Appraisal.appraisal_create_time.desc())
         .offset((page - 1) * pageSize)
         .limit(pageSize)
     )
-    orders = session.exec(stmt).all()
+    appraisals = session.exec(stmt).all()
 
-    # 组装结果
     result_list = []
-    for o in orders:
-        # 查询 Resource 表
-        resources_stmt = select(Resource).where(Resource.order_id == o.id)
-        resources = session.exec(resources_stmt).all()
 
-        images = []
-        videos = []
+    for a in appraisals:
+        # 查询 appraisal_resource
+        res_stmt = select(AppraisalResource).where(AppraisalResource.appraisal_id == a.id)
+        resources = session.exec(res_stmt).all()
+
+        images, videos = [], []
         for r in resources:
-            if r.resource_url.endswith((".jpg", ".jpeg", ".png")):
-                images.append(r.resource_url)
-            elif r.resource_url.endswith((".mp4", ".mov", ".avi")):
-                videos.append(r.resource_url)
+            if not r.url:
+                continue
+            if r.url.lower().endswith((".jpg", ".jpeg", ".png")):
+                images.append(r.url)
+            elif r.url.lower().endswith((".mp4", ".mov", ".avi")):
+                videos.append(r.url)
 
         result_list.append({
-            "appraisal_id": str(o.id),
+            "appraisal_id": a.id,
+            "title": a.title or "",
+            "description": a.desc or "",
+            "appraisal_status": a.appraisal_status or "",
+            "first_class": a.first_class or "",
             "images": images,
             "videos": videos,
-            "appraisal_class": o.appraisal_class or "",
-            "title": o.title or "",
-            "description": o.description or "",
-            "create_time": o.create_time.isoformat(),
-            "update_time": o.update_time.isoformat(),
-            "appraisal_status": o.appraisal_status or 1
+            "create_time": a.appraisal_create_time,
         })
 
     return {
@@ -203,7 +213,7 @@ def get_appraisal_list(
             "page_size": pageSize,
             "total_pages": (total + pageSize - 1) // pageSize,
             "list": result_list,
-        }
+        },
     }
 
 
@@ -216,7 +226,7 @@ def get_batch_appraisal_detail(
         raise HTTPException(status_code=400, detail="ids 不能为空")
 
     # 查询订单
-    orders_stmt = select(Order).where(Order.id.in_(req.ids))
+    orders_stmt = select(Appraisal).where(Appraisal.id.in_(req.ids))
     orders = session.exec(orders_stmt).all()
 
     if not orders:
@@ -247,14 +257,25 @@ def get_batch_appraisal_detail(
                 "reasons": [],          # 如果有存疑/驳回原因字段，可填充
                 "custom_reason": ""     # 如果有自定义原因字段，可填充
             }
+        
+        # 🔹 查询用户手机号
+        user_phone = None
+        if o.userinfo_id:
+            phone_stmt = (
+                select(UserInfo.phone)
+                .where(UserInfo.id == o.userinfo_id)
+                .limit(1)
+            )
+            user_phone = session.exec(phone_stmt).first()
 
         response_data.append({
             "order_id": str(o.id),
             "title": o.title or "",
-            "description": o.description or "",
-            "appraisal_class": o.appraisal_class or "",
-            "create_time": o.create_time.strftime("%Y-%m-%d %H:%M:%S"),
-            "update_time": o.update_time.strftime("%Y-%m-%d %H:%M:%S"),
+            "user_phone":  user_phone,
+            "description": o.desc or "",
+            "appraisal_class": o.first_class or "",
+            "create_time": datetime.fromtimestamp(o.appraisal_create_time / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S") if o.appraisal_create_time else "",
+            # "update_time": o.update_time.strftime("%Y-%m-%d %H:%M:%S"),
             "latest_appraisal": appraisal_data
         })
 
@@ -273,7 +294,7 @@ def update_appraisal_info(
     results = []
 
     for item in updates:
-        order = session.get(Order, item.id)
+        order = session.get(Appraisal, item.id)
         if not order:
             results.append(OrderUpdateResult(
                 order_id=item.id,
@@ -284,7 +305,7 @@ def update_appraisal_info(
 
         try:
             if item.appraisal_class is not None and item.appraisal_class.strip() != "":
-                order.appraisal_class = item.appraisal_class
+                order.first_class = item.appraisal_class
             if item.appraisal_status is not None:
                 order.appraisal_status = item.appraisal_status
 
@@ -315,6 +336,7 @@ def update_appraisal_info(
 @app.post("/api/appraisal/result/add", response_model=BatchAddResultResponse)
 def add_appraisal_results(
     req: AppraisalResultBatchRequest,
+    current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
     if not req.items:
@@ -324,7 +346,7 @@ def add_appraisal_results(
     failed_items: List[FailedItem] = []
 
     for item in req.items:
-        order = session.get(Order, item.orderid)
+        order = session.get(Appraisal, item.orderid)
         if not order:
             failed_items.append(FailedItem(order_id=item.orderid, reason="未找到对应订单"))
             continue
@@ -342,12 +364,13 @@ def add_appraisal_results(
                 order_id=item.orderid,
                 result=str(item.appraisalResult or "未知"),
                 notes=notes,
-                user_id=item.userid,
+                user_id=current_user.id,
             )
             session.add(new_result)
             success_count += 1
 
         except Exception as e:
+            session.rollback()  
             failed_items.append(FailedItem(order_id=item.orderid, reason=f"插入失败: {str(e)}"))
 
     session.commit()
@@ -371,3 +394,4 @@ def add_appraisal_results(
 3. 运行服务： uvicorn fastapi_app_main:app --reload
 4. 打开 Swagger UI: http://127.0.0.1:8000/docs
 """
+

@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends, Form, UploadFile, File
-from sqlmodel import SQLModel, Field, Relationship, Session, create_engine, select
+from sqlmodel import SQLModel, Field, Relationship, Session, create_engine, select, Column, String
 from typing import Optional, List
 from pydantic import BaseModel
 from datetime import datetime, timedelta, timezone
@@ -18,8 +18,8 @@ class User(SQLModel, table=True):
     nickname: Optional[str] = None
     phone: Optional[str] = None
     avatar: Optional[str] = None
-    create_time: datetime = Field(default_factory=datetime.now(timezone.utc))
-    update_time: datetime = Field(default_factory=datetime.now(timezone.utc))
+    create_time: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    update_time: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     categories: List["Category"] = Relationship(back_populates="users", link_model=UserCategoryLink)
 
 
@@ -30,48 +30,76 @@ class Category(SQLModel, table=True):
     description: Optional[str] = None
     users: List[User] = Relationship(back_populates="categories", link_model=UserCategoryLink)
 
-class Order(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id")
-    category_id: int = Field(foreign_key="category.id")
+
+class Appraisal(SQLModel, table=True):
+    __tablename__ = "appraisal"
+
+    id: str = Field(sa_column=Column("_id", String(34), primary_key=True))  # ✅ 数据库里叫 _id
     title: Optional[str] = None
-    description: Optional[str] = None
-    appraisal_class: Optional[str] = None
-    create_time: datetime = Field(default_factory=datetime.now(timezone.utc))
-    update_time: datetime = Field(default_factory=datetime.now(timezone.utc))
-    appraisal_status: Optional[int] = 1
-    deleted: bool = Field(default=False)
-    resources: List["Resource"] = Relationship(back_populates="order")
+    desc: Optional[str] = Field(default=None, sa_column=Column("desc", String(255)))
+    appraisal_status: Optional[str] = None
+    first_class: Optional[str] = None
+    appraisal_create_time: Optional[int] = None
+    userinfo_id: Optional[str] = Field(default=None, sa_column=Column("userinfo_id", String(64)))
+
+    resources: List["AppraisalResource"] = Relationship(back_populates="appraisal")
 
 
-class Resource(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    order_id: int = Field(foreign_key="order.id")
-    type: Optional[str] = None  # e.g., 'image', 'document'
-    resource_url: str
-    description: Optional[str] = None
-    order: Optional[Order] = Relationship(back_populates="resources")
+class AppraisalResource(SQLModel, table=True):
+    __tablename__ = "appraisal_resource"
+
+    id: str = Field(sa_column=Column("_id", String(34), primary_key=True))
+    appraisal_id: Optional[str] = Field(
+        default=None,
+        foreign_key="appraisal._id"  # ✅ 数据库外键对应 appraisal._id
+    )
+    type: Optional[str] = Field(default=None, sa_column=Column("type", String(64)))
+    url: Optional[str] = None
+
+    appraisal: Optional[Appraisal] = Relationship(back_populates="resources")
+
+# class Order(SQLModel, table=True):
+#     id: Optional[int] = Field(default=None, primary_key=True)
+#     user_id: int = Field(foreign_key="user.id")
+#     category_id: int = Field(foreign_key="category.id")
+#     title: Optional[str] = None
+#     description: Optional[str] = None
+#     appraisal_class: Optional[str] = None
+#     create_time: datetime = Field(default_factory=datetime.now(timezone.utc))
+#     update_time: datetime = Field(default_factory=datetime.now(timezone.utc))
+#     appraisal_status: Optional[int] = 1
+#     deleted: bool = Field(default=False)
+#     resources: List["Resource"] = Relationship(back_populates="order")
+
+
+# class Resource(SQLModel, table=True):
+#     id: Optional[int] = Field(default=None, primary_key=True)
+#     order_id: int = Field(foreign_key="order.id")
+#     type: Optional[str] = None  # e.g., 'image', 'document'
+#     resource_url: str
+#     description: Optional[str] = None
+#     order: Optional[Order] = Relationship(back_populates="resources")
 
 # ——---------------- 评论模型暂时没有用到 ------------------
-class Comment(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    order_id: int = Field(foreign_key="order.id")
-    user_id: int = Field(foreign_key="user.id")
-    content: str
+# class Comment(SQLModel, table=True):
+#     id: Optional[int] = Field(default=None, primary_key=True)
+#     order_id: int = Field(foreign_key="order.id")
+#     user_id: int = Field(foreign_key="user.id")
+#     content: str
 
 class AppraisalResult(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    order_id: int = Field(foreign_key="order.id")
+    order_id: str = Field( max_length=34)  # varchar(34)
     result: str = Field(nullable=False)  # 鉴定结果（真品/赝品/待定等）
     notes: Optional[str] = None          # 备注
     user_id: Optional[int] = Field(default=None, foreign_key="user.id")  # 鉴定师ID，可为空
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-
 # ------------------ 登录请求模型 ------------------
 class LoginRequest(BaseModel):
     username: str
     password: str
+
 
 # ------------------ 登录响应模型 ------------------
 class LoginResponse(BaseModel):
@@ -90,7 +118,7 @@ class AppraisalDetail(BaseModel):
     description: Optional[str] = ""
     appraisal_class: Optional[str] = ""
     create_time: str
-    update_time: str
+    # update_time: str
     latest_appraisal: Optional[AppraisalResult] = None
 
 class BatchDetailResponse(BaseModel):
@@ -121,12 +149,12 @@ class BatchUpdateResponse(BaseModel):
     data: BatchUpdateResult
 
 class AppraisalUpdateItem(BaseModel):
-    id: int
+    id: str
     appraisal_status: Optional[int] = None
     appraisal_class: Optional[str] = None
 
 class OrderUpdateResult(BaseModel):
-    order_id: int
+    order_id: str
     success: bool
     message: str
 
@@ -150,7 +178,7 @@ class BatchAddResultResponse(BaseModel):
     data: BatchAddResultData
 
 class AppraisalResultItem(BaseModel):
-    orderid: int
+    orderid: str
     appraisalResult: Optional[str] = None
     userid: Optional[int] = None
     comment: Optional[str] = None
@@ -163,4 +191,10 @@ class AppraisalResultBatchRequest(BaseModel):
 
 
 
+
+class UserInfo(SQLModel, table=True):
+    __tablename__ = "userinfo"
+
+    id: str = Field(sa_column_kwargs={"name": "_id"}, primary_key=True)
+    phone: Optional[str] = None
 
