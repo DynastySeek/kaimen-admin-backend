@@ -25,9 +25,9 @@ data:
       
     cors:
       allow_origins:
-        - "https://admin.kaimen.site"
-        - "https://admin-test.kaimen.site"
-        - "https://*.kaimen.site"
+        - "http://admin.kaimen.site"
+        - "http://admin-test.kaimen.site"
+        - "http://*.kaimen.site"
       allow_methods:
         - "GET"
         - "POST"
