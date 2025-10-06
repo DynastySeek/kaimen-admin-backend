@@ -112,14 +112,27 @@ class BatchDetailRequest(BaseModel):
     ids: List[str]
 
 
+class LatestAppraisalData(BaseModel):
+    id: str = ""
+    user_id: str = ""
+    create_time: str = ""
+    update_time: str = ""
+    appraisal_status: int = 0
+    appraisal_result: str = ""
+    notes: str = ""
+    result: str = ""
+    reasons: List[str] = []
+    custom_reason: str = ""
+
 class AppraisalDetail(BaseModel):
     order_id: str
     title: Optional[str] = ""
+    user_phone: Optional[str] = None
     description: Optional[str] = ""
     appraisal_class: Optional[str] = ""
     create_time: str
     # update_time: str
-    latest_appraisal: Optional[AppraisalResult] = None
+    latest_appraisal: LatestAppraisalData
 
 class BatchDetailResponse(BaseModel):
     code: int = 200

@@ -4,7 +4,8 @@ from typing import Optional , List
 from datetime import datetime, timedelta, timezone
 from models import User, LoginRequest, LoginResponse, BatchDetailRequest, Appraisal, UserInfo, \
                     BatchDetailResponse , AppraisalResource, AppraisalResult, AppraisalUpdateItem, OrderUpdateResult, \
-                    OrderUpdateResponse, AppraisalResultBatchRequest, BatchAddResultResponse, BatchAddResultData, FailedItem
+                    OrderUpdateResponse, AppraisalResultBatchRequest, BatchAddResultResponse, BatchAddResultData, FailedItem, \
+                    LatestAppraisalData
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 import jwt
@@ -255,33 +256,24 @@ def get_batch_appraisal_detail(
                     latest_appraisal_result = session.exec(latest_appraisal_stmt).first()
 
                     if latest_appraisal_result:
-                        appraisal_data = {
-                            "id": str(latest_appraisal_result.id),
-                            "user_id": str(latest_appraisal_result.user_id) if latest_appraisal_result.user_id else "",
-                            "create_time": latest_appraisal_result.created_at.strftime("%Y-%m-%d %H:%M:%S") if latest_appraisal_result.created_at else "",
-                            "update_time": latest_appraisal_result.created_at.strftime("%Y-%m-%d %H:%M:%S") if latest_appraisal_result.created_at else "",
-                            "appraisal_status": 1,  # 可根据业务调整
-                            "appraisal_result": latest_appraisal_result.result or "",
-                            "notes": latest_appraisal_result.notes or "",
-                            "result": latest_appraisal_result.result or "",
-                            "reasons": [],          # 如果有存疑/驳回原因字段，可填充
-                            "custom_reason": ""     # 如果有自定义原因字段，可填充
-                        }
+                        appraisal_data = LatestAppraisalData(
+                            id=str(latest_appraisal_result.id),
+                            user_id=str(latest_appraisal_result.user_id) if latest_appraisal_result.user_id else "",
+                            create_time=latest_appraisal_result.created_at.strftime("%Y-%m-%d %H:%M:%S") if latest_appraisal_result.created_at else "",
+                            update_time=latest_appraisal_result.created_at.strftime("%Y-%m-%d %H:%M:%S") if latest_appraisal_result.created_at else "",
+                            appraisal_status=1,  # 可根据业务调整
+                            appraisal_result=latest_appraisal_result.result or "",
+                            notes=latest_appraisal_result.notes or "",
+                            result=latest_appraisal_result.result or "",
+                            reasons=[],          # 如果有存疑/驳回原因字段，可填充
+                            custom_reason=""     # 如果有自定义原因字段，可填充
+                        )
+                    else:
+                        appraisal_data = LatestAppraisalData()
                 except Exception as e:
                     print(f"查询鉴定结果失败，订单ID: {o.id}, 错误: {str(e)}")
                     # 如果查询鉴定结果失败，使用空的默认数据，不影响其他数据返回
-                    appraisal_data = {
-                        "id": "",
-                        "user_id": "",
-                        "create_time": "",
-                        "update_time": "",
-                        "appraisal_status": 0,
-                        "appraisal_result": "",
-                        "notes": "",
-                        "result": "",
-                        "reasons": [],
-                        "custom_reason": ""
-                    }
+                    appraisal_data = LatestAppraisalData()
                 
                 # 🔹 查询用户手机号 - 添加异常处理
                 user_phone = None
