@@ -232,61 +232,100 @@ def get_batch_appraisal_detail(
     if not req.ids:
         raise HTTPException(status_code=400, detail="ids 不能为空")
 
-    # 查询订单
-    orders_stmt = select(Appraisal).where(Appraisal.id.in_(req.ids))
-    orders = session.exec(orders_stmt).all()
+    try:
+        # 查询订单
+        orders_stmt = select(Appraisal).where(Appraisal.id.in_(req.ids))
+        orders = session.exec(orders_stmt).all()
 
-    if not orders:
-        return BatchDetailResponse(code=200, message="未查询到结果", data=[])
+        if not orders:
+            return BatchDetailResponse(code=200, message="未查询到结果", data=[])
 
-    response_data = []
-    for o in orders:
-        # 查询该订单最新的鉴定结果
-        latest_appraisal_stmt = (
-            select(AppraisalResult)
-            .where(AppraisalResult.order_id == o.id)
-            .order_by(AppraisalResult.created_at.desc())
-            .limit(1)
-        )
-        latest_appraisal_result = session.exec(latest_appraisal_stmt).first()
+        response_data = []
+        for o in orders:
+            try:
+                # 查询该订单最新的鉴定结果 - 添加异常处理
+                appraisal_data = {}
+                try:
+                    latest_appraisal_stmt = (
+                        select(AppraisalResult)
+                        .where(AppraisalResult.order_id == o.id)
+                        .order_by(AppraisalResult.created_at.desc())
+                        .limit(1)
+                    )
+                    latest_appraisal_result = session.exec(latest_appraisal_stmt).first()
 
-        appraisal_data = {}
-        if latest_appraisal_result:
-            appraisal_data = {
-                "id": str(latest_appraisal_result.id),
-                "user_id": str(latest_appraisal_result.user_id),
-                "create_time": latest_appraisal_result.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                "update_time": latest_appraisal_result.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                "appraisal_status": 1,  # 可根据业务调整
-                "appraisal_result": latest_appraisal_result.result,
-                "notes": latest_appraisal_result.notes or "",
-                "result": latest_appraisal_result.result,
-                "reasons": [],          # 如果有存疑/驳回原因字段，可填充
-                "custom_reason": ""     # 如果有自定义原因字段，可填充
-            }
+                    if latest_appraisal_result:
+                        appraisal_data = {
+                            "id": str(latest_appraisal_result.id),
+                            "user_id": str(latest_appraisal_result.user_id) if latest_appraisal_result.user_id else "",
+                            "create_time": latest_appraisal_result.created_at.strftime("%Y-%m-%d %H:%M:%S") if latest_appraisal_result.created_at else "",
+                            "update_time": latest_appraisal_result.created_at.strftime("%Y-%m-%d %H:%M:%S") if latest_appraisal_result.created_at else "",
+                            "appraisal_status": 1,  # 可根据业务调整
+                            "appraisal_result": latest_appraisal_result.result or "",
+                            "notes": latest_appraisal_result.notes or "",
+                            "result": latest_appraisal_result.result or "",
+                            "reasons": [],          # 如果有存疑/驳回原因字段，可填充
+                            "custom_reason": ""     # 如果有自定义原因字段，可填充
+                        }
+                except Exception as e:
+                    print(f"查询鉴定结果失败，订单ID: {o.id}, 错误: {str(e)}")
+                    # 如果查询鉴定结果失败，使用空的默认数据，不影响其他数据返回
+                    appraisal_data = {
+                        "id": "",
+                        "user_id": "",
+                        "create_time": "",
+                        "update_time": "",
+                        "appraisal_status": 0,
+                        "appraisal_result": "",
+                        "notes": "",
+                        "result": "",
+                        "reasons": [],
+                        "custom_reason": ""
+                    }
+                
+                # 🔹 查询用户手机号 - 添加异常处理
+                user_phone = None
+                if o.userinfo_id:
+                    try:
+                        phone_stmt = (
+                            select(UserInfo.phone)
+                            .where(UserInfo.id == o.userinfo_id)
+                            .limit(1)
+                        )
+                        user_phone = session.exec(phone_stmt).first()
+                    except Exception as e:
+                        print(f"查询用户手机号失败，用户ID: {o.userinfo_id}, 错误: {str(e)}")
+                        user_phone = None
+
+                # 时间戳转换 - 添加异常处理
+                create_time = ""
+                if o.appraisal_create_time:
+                    try:
+                        create_time = datetime.fromtimestamp(o.appraisal_create_time / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+                    except Exception as e:
+                        print(f"时间戳转换失败，订单ID: {o.id}, 时间戳: {o.appraisal_create_time}, 错误: {str(e)}")
+                        create_time = ""
+
+                response_data.append({
+                    "order_id": str(o.id),
+                    "title": o.title or "",
+                    "user_phone": user_phone,
+                    "description": o.desc or "",
+                    "appraisal_class": o.first_class or "",
+                    "create_time": create_time,
+                    "latest_appraisal": appraisal_data
+                })
+                
+            except Exception as e:
+                print(f"处理订单数据失败，订单ID: {o.id}, 错误: {str(e)}")
+                # 如果单个订单处理失败，跳过该订单，继续处理其他订单
+                continue
+
+        return BatchDetailResponse(code=200, message="查询成功", data=response_data)
         
-        # 🔹 查询用户手机号
-        user_phone = None
-        if o.userinfo_id:
-            phone_stmt = (
-                select(UserInfo.phone)
-                .where(UserInfo.id == o.userinfo_id)
-                .limit(1)
-            )
-            user_phone = session.exec(phone_stmt).first()
-
-        response_data.append({
-            "order_id": str(o.id),
-            "title": o.title or "",
-            "user_phone":  user_phone,
-            "description": o.desc or "",
-            "appraisal_class": o.first_class or "",
-            "create_time": datetime.fromtimestamp(o.appraisal_create_time / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S") if o.appraisal_create_time else "",
-            # "update_time": o.update_time.strftime("%Y-%m-%d %H:%M:%S"),
-            "latest_appraisal": appraisal_data
-        })
-
-    return BatchDetailResponse(code=200, message="查询成功", data=response_data)
+    except Exception as e:
+        print(f"批量查询鉴定详情失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"服务器内部错误: {str(e)}")
 
 
 # ---------- 批量更新订单类目和状态接口 ----------
