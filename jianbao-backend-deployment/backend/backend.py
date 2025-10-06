@@ -41,8 +41,15 @@ app = FastAPI(title="Appraisal Management Platform", version="1.0")
 # CORS 配置
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://admin.kaimen.site"],
-    allow_origin_regex=r"https://.*\.jianbao\.com",
+    allow_origins=[
+        "https://admin.kaimen.site",
+        "http://admin.kaimen.site",
+        "https://admin-test.kaimen.site",
+        "http://admin-test.kaimen.site",
+        "http://localhost:3000",
+        "https://localhost:3000"
+    ],
+    allow_origin_regex=r"https?://.*\.kaimen\.site",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
