@@ -4,12 +4,15 @@
 from sqlmodel import SQLModel, Field
 from typing import Optional
 from datetime import datetime, timezone
+from app.config.settings import get_table_suffix
 
 
 class User(SQLModel, table=True):
     """
     用户模型
     """
+    __tablename__ = f"user{get_table_suffix('user')}"
+    
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(description="用户名")
     email: Optional[str] = Field(default=None, description="邮箱")

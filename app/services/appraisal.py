@@ -52,15 +52,15 @@ class AppraisalService:
 
         # 创建时间范围过滤
         if createStartTime and (start_t := parse_time(createStartTime)):
-            filters.append(Appraisal.appraisal_create_time >= start_t * 1000)
+            filters.append(Appraisal.created_at >= start_t * 1000)
         if createEndTime and (end_t := parse_time(createEndTime)):
-            filters.append(Appraisal.appraisal_create_time <= end_t * 1000)
+            filters.append(Appraisal.created_at <= end_t * 1000)
             
         # 更新时间范围过滤
         if updateStartTime and (start_t := parse_time(updateStartTime)):
-            filters.append(Appraisal.appraisal_update_time >= start_t * 1000)
+            filters.append(Appraisal.updatedAt >= start_t * 1000)
         if updateEndTime and (end_t := parse_time(updateEndTime)):
-            filters.append(Appraisal.appraisal_update_time <= end_t * 1000)
+            filters.append(Appraisal.updatedAt <= end_t * 1000)
             
         # 鉴定师过滤 - 查询最后提交鉴定结果的鉴定师
         if appraiserId:
@@ -82,7 +82,7 @@ class AppraisalService:
         stmt = (
             select(Appraisal)
             .where(and_(*filters))
-            .order_by(Appraisal.appraisal_create_time.desc())
+            .order_by(Appraisal.created_at.desc())
             .offset((page - 1) * pageSize)
             .limit(pageSize)
         )
@@ -109,7 +109,7 @@ class AppraisalService:
             ).first()
 
             result_list.append({
-                "id": a.id,
+                "appraisal_id": a.id,
                 "title": a.title or "",
                 "user_phone": user_info.phone if user_info else None,
                 "description": a.desc or "",
@@ -117,7 +117,7 @@ class AppraisalService:
                 "first_class": a.first_class or "",
                 "images": images,
                 "videos": videos,
-                "create_time": a.appraisal_create_time,
+                "create_time": a.created_at,
             })
 
         return success_response(data={
@@ -133,18 +133,15 @@ class AppraisalService:
         result_list = []
         
         for appraisal_id in request.ids:
-            appraisal = session.exec(
-                select(Appraisal).where(Appraisal.id == appraisal_id)
-            ).first()
-            
-            if not appraisal:
-                continue
-                
             latest_result = session.exec(
-                select(AppraisalResult).where(AppraisalResult.order_id == appraisal_id)
+            select(AppraisalResult).where(AppraisalResult.order_id == appraisal_id)
                 .order_by(AppraisalResult.created_at.desc())
             ).first()
+            print(latest_result)
             
+            if not latest_result:
+                continue
+
             # 查询鉴定师信息
             appraiser_name = ""
             appraiser_nickname = ""
@@ -158,12 +155,9 @@ class AppraisalService:
             
             latest_appraisal_data = {
                 "appraisal_id": appraisal_id,
-                "create_time": str(appraisal.appraisal_create_time or 0),
-                "appraisal_status": int(appraisal.appraisal_status or 0),
-                "appraisal_result": int(latest_result.result) if latest_result and latest_result.result else 0,
+                "created_at": str(latest_result.created_at or 0),
+                "result": latest_result.result,
                 "comment": latest_result.notes if latest_result else "",
-                "reasons": [],
-                "custom_reason": "",
                 "appraiser_name": appraiser_name,
                 "appraiser_nickname": appraiser_nickname
             }
@@ -198,7 +192,8 @@ class AppraisalService:
                 if item.notes:
                     appraisal.notes = item.notes
                 
-                appraisal.appraisal_update_time = int(datetime.now(timezone.utc).timestamp() * 1000)
+                # 更新时间
+                appraisal.updatedAt = int(datetime.now(timezone.utc).timestamp() * 1000)
                 
                 session.add(appraisal)
                 success_count += 1
@@ -243,7 +238,8 @@ class AppraisalService:
                 if item.notes:
                     appraisal.notes = item.notes
                 
-                appraisal.appraisal_update_time = int(datetime.now(timezone.utc).timestamp() * 1000)
+                # 更新时间
+                appraisal.updatedAt = int(datetime.now(timezone.utc).timestamp() * 1000)
                 
                 session.add(appraisal)
                 
@@ -284,12 +280,10 @@ class AppraisalService:
                     continue
                 
                 result = AppraisalResult(
-                    order_id=item.order_id,
+                    appraisal_id=item.order_id,
                     user_id=item.user_id,
                     result=str(item.result),
                     notes=item.notes or "",
-                    reasons=item.reasons or [],
-                    custom_reason=item.custom_reason or "",
                     created_at=datetime.now(timezone.utc)
                 )
                 

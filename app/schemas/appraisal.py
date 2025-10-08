@@ -3,6 +3,7 @@
 """
 from pydantic import BaseModel
 from typing import Optional, List
+from datetime import datetime
 
 
 class BatchDetailRequest(BaseModel):
@@ -12,27 +13,24 @@ class BatchDetailRequest(BaseModel):
 
 class LatestAppraisalData(BaseModel):
     """最新鉴定数据模式"""
-    id: str = ""
-    user_id: str = ""
-    create_time: str = ""
-    update_time: str = ""
-    appraisal_status: int = 0
-    appraisal_result: str = ""
-    notes: str = ""
-    result: str = ""
-    reasons: List[str] = []
-    custom_reason: str = ""
+    appraisal_id: str
+    result: str
+    notes: str
+    user_id: Optional[int] = None
+    created_at: datetime
 
 
 class AppraisalDetail(BaseModel):
     """鉴定详情模式"""
-    order_id: str
-    title: Optional[str] = ""
-    user_phone: Optional[str] = None
-    description: Optional[str] = ""
-    appraisal_class: Optional[str] = ""
-    create_time: str
-    latest_appraisal: LatestAppraisalData
+    appraisal_id: str
+    title: str
+    desc: str
+    appraisal_status: str
+    first_class: str
+    create_time: int
+    result: str = ""
+    notes: str = ""
+    user_id: Optional[int] = None
 
 
 class BatchDetailResponse(BaseModel):
@@ -48,8 +46,6 @@ class BatchUpdateItem(BaseModel):
     appraisalClass: Optional[str] = None
     appraisalResult: Optional[int] = None
     comment: Optional[str] = None
-    reasons: Optional[List[str]] = None
-    customReason: Optional[str] = None
 
 
 class BatchUpdateRequest(BaseModel):
@@ -80,7 +76,7 @@ class AppraisalUpdateItem(BaseModel):
 
 class OrderUpdateResult(BaseModel):
     """订单更新结果模式"""
-    order_id: str
+    appraisal_id: int
     success: bool
     message: str
 
@@ -118,8 +114,6 @@ class AppraisalResultItem(BaseModel):
     appraisalResult: Optional[str] = None
     userid: Optional[int] = None
     comment: Optional[str] = None
-    reasons: Optional[List[str]] = None
-    customReason: Optional[str] = None
 
 
 class AppraisalResultBatchRequest(BaseModel):

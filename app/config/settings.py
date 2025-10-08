@@ -1,6 +1,23 @@
 """
 应用设置配置
 """
+import os
+
+# 环境配置
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")  # development, testing, production
+
+# 表名后缀配置函数
+def get_table_suffix(base_table_name: str) -> str:
+    """
+    根据表名和环境返回相应的后缀
+    """
+    if ENVIRONMENT in ["development", "testing"]:
+        # 根据实际数据库中的表名格式设置后缀
+        if base_table_name in ["user", "appraisal_result"]:
+            return "_preview"
+        else:
+            return "-preview"
+    return ""
 
 # JWT 配置
 SECRET_KEY = "kaimen_admin"  # 建议使用安全生成的随机字符串
