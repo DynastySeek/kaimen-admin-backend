@@ -43,7 +43,7 @@ class AppraisalResult(SQLModel, table=True):
     __tablename__ = f"appraisal_result{get_table_suffix('appraisal_result')}"
     
     id: Optional[int] = Field(default=None, primary_key=True)
-    order_id: str = Field(max_length=34)
+    appraisal_id: str = Field(max_length=34)
     result: str = Field(nullable=False)
     notes: Optional[str] = None
     user_id: Optional[int] = Field(default=None, foreign_key=f"user{get_table_suffix('user')}.id")

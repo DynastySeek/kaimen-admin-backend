@@ -4,19 +4,10 @@
 from typing import Any, Optional
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
+from app.constants.response_codes import ResponseCode, ResponseMessage
 
 
-class ResponseCode:
-    """响应状态码"""
-    SUCCESS = 200
-    BAD_REQUEST = 400
-    UNAUTHORIZED = 401
-    FORBIDDEN = 403
-    NOT_FOUND = 404
-    INTERNAL_ERROR = 500
-
-
-def success_response(data: Any = None, message: str = "操作成功") -> dict:
+def success_response(data: Any = None, message: str = ResponseMessage.SUCCESS) -> dict:
     """
     成功响应
     
@@ -30,11 +21,12 @@ def success_response(data: Any = None, message: str = "操作成功") -> dict:
     return {
         "code": ResponseCode.SUCCESS,
         "message": message,
-        "data": data
+        "data": data,
+        "success": True
     }
 
 
-def error_response(code: int = ResponseCode.INTERNAL_ERROR, message: str = "操作失败", data: Any = None) -> dict:
+def error_response(code: int = ResponseCode.FAILURE, message: str = ResponseMessage.FAILURE, data: Any = None) -> dict:
     """
     错误响应
     
@@ -49,11 +41,12 @@ def error_response(code: int = ResponseCode.INTERNAL_ERROR, message: str = "操�
     return {
         "code": code,
         "message": message,
-        "data": data
+        "data": data,
+        "success": False
     }
 
 
-def raise_http_error(code: int = ResponseCode.INTERNAL_ERROR, message: str = "操作失败", data: Any = None):
+def raise_http_error(code: int = ResponseCode.FAILURE, message: str = ResponseMessage.FAILURE, data: Any = None):
     """
     抛出HTTP错误
     
@@ -66,12 +59,12 @@ def raise_http_error(code: int = ResponseCode.INTERNAL_ERROR, message: str = "�
         HTTPException: HTTP异常
     """
     raise HTTPException(
-        status_code=code,
+        status_code=ResponseCode.HTTP_ERROR,
         detail=error_response(code, message, data)
     )
 
 
-def json_response(data: Any = None, message: str = "操作成功", code: int = ResponseCode.SUCCESS) -> JSONResponse:
+def json_response(data: Any = None, message: str = ResponseMessage.SUCCESS, code: int = ResponseCode.SUCCESS) -> JSONResponse:
     """
     JSON响应
     
@@ -83,11 +76,15 @@ def json_response(data: Any = None, message: str = "操作成功", code: int = R
     Returns:
         JSONResponse: JSON响应对象
     """
+    success = code == ResponseCode.SUCCESS
+    status_code = ResponseCode.HTTP_SUCCESS if success else ResponseCode.HTTP_ERROR
+    
     return JSONResponse(
-        status_code=200,
+        status_code=status_code,
         content={
             "code": code,
             "message": message,
-            "data": data
+            "data": data,
+            "success": success
         }
     )

@@ -67,7 +67,7 @@ class AppraisalService:
         if appraiserId:
             # 子查询获取每个订单的最新鉴定结果
             latest_result_subquery = (
-                select(AppraisalResult.order_id)
+                select(AppraisalResult.appraisal_id)
                 .where(AppraisalResult.user_id == appraiserId)
                 .distinct()
             )
@@ -135,7 +135,7 @@ class AppraisalService:
         
         for appraisal_id in request.ids:
             latest_result = session.exec(
-            select(AppraisalResult).where(AppraisalResult.order_id == appraisal_id)
+            select(AppraisalResult).where(AppraisalResult.appraisal_id == appraisal_id)
                 .order_by(AppraisalResult.created_at.desc())
             ).first()
             print(latest_result)
@@ -243,7 +243,7 @@ class AppraisalService:
                     notes += f" | 其他: {item.customReason}"
                 
                 result = AppraisalResult(
-                    order_id=item.appraisalId,
+                    appraisal_id=item.appraisalId,
                     user_id=current_user.id,
                     result=item.appraisalResult or "未知",
                     notes=notes,
