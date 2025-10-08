@@ -167,40 +167,38 @@ class AppraisalService:
         return success_response(data=result_list, message="查询成功")
 
     @staticmethod
-    def batch_update_appraisals(request: BatchUpdateRequest, session: Session = Depends(get_session)):
+    def batch_update_appraisals(request: List[AppraisalUpdateItem], session: Session = Depends(get_session)):
         
         success_count = 0
         failed_items = []
         
-        for item in request.items:
+        for item in request:
             try:
                 appraisal = session.exec(
-                    select(Appraisal).where(Appraisal.id == item.order_id)
+                    select(Appraisal).where(Appraisal.id == item.id)
                 ).first()
                 
                 if not appraisal:
                     failed_items.append(FailedItem(
-                        order_id=item.order_id,
-                        reason="订单不存在"
+                        appraisal_id=item.id,
+                        reason="鉴定不存在"
                     ))
                     continue
                 
                 if item.appraisal_status is not None:
                     appraisal.appraisal_status = str(item.appraisal_status)
-                if item.appraisal_result is not None:
-                    appraisal.appraisal_result = str(item.appraisal_result)
-                if item.notes:
-                    appraisal.notes = item.notes
+                if item.appraisal_class is not None:
+                    appraisal.first_class = str(item.appraisal_class)
                 
                 # 更新时间
-                appraisal.updatedAt = int(datetime.now(timezone.utc).timestamp() * 1000)
+                appraisal.updated_at = int(datetime.now(timezone.utc).timestamp() * 1000)
                 
                 session.add(appraisal)
                 success_count += 1
                 
             except Exception as e:
                 failed_items.append(FailedItem(
-                    order_id=item.order_id,
+                    appraisal_id=item.id,
                     reason=str(e)
                 ))
         
@@ -211,54 +209,6 @@ class AppraisalService:
             "failed_count": len(failed_items),
             "failed_items": [item.dict() for item in failed_items]
         })
-
-    @staticmethod
-    def batch_update_orders(items: List[AppraisalUpdateItem], session: Session = Depends(get_session)):
-        
-        results = []
-        
-        for item in items:
-            try:
-                appraisal = session.exec(
-                    select(Appraisal).where(Appraisal.id == item.order_id)
-                ).first()
-                
-                if not appraisal:
-                    results.append({
-                        "order_id": item.order_id,
-                        "success": False,
-                        "message": "订单不存在"
-                    })
-                    continue
-                
-                if item.appraisal_status is not None:
-                    appraisal.appraisal_status = str(item.appraisal_status)
-                if item.appraisal_result is not None:
-                    appraisal.appraisal_result = str(item.appraisal_result)
-                if item.notes:
-                    appraisal.notes = item.notes
-                
-                # 更新时间
-                appraisal.updatedAt = int(datetime.now(timezone.utc).timestamp() * 1000)
-                
-                session.add(appraisal)
-                
-                results.append({
-                    "order_id": item.order_id,
-                    "success": True,
-                    "message": "更新成功"
-                })
-                
-            except Exception as e:
-                results.append({
-                    "order_id": item.order_id,
-                    "success": False,
-                    "message": str(e)
-                })
-        
-        session.commit()
-        
-        return success_response(data=results)
 
     @staticmethod
     def batch_add_appraisal_results(request: AppraisalResultBatchRequest, session: Session = Depends(get_session)):

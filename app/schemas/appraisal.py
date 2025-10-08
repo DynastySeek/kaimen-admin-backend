@@ -90,7 +90,7 @@ class OrderUpdateResponse(BaseModel):
 
 class FailedItem(BaseModel):
     """失败项模式"""
-    order_id: int
+    appraisal_id: str
     reason: str
 
 

@@ -63,12 +63,12 @@ def get_appraisal_result(
 
 
 @router.post("/update")
-def batch_update_orders(
+def batch_update_appraisals(
     items: List[AppraisalUpdateItem],
     session: Session = Depends(get_session)
 ):
     try:
-        result = AppraisalService.batch_update_orders(items, session)
+        result = AppraisalService.batch_update_appraisals(items, session)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"批量更新订单失败: {str(e)}")
