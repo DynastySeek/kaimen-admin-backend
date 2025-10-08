@@ -110,10 +110,11 @@ class BatchAddResultResponse(BaseModel):
 
 class AppraisalResultItem(BaseModel):
     """鉴定结果项模式"""
-    orderid: str
+    appraisalId: str
     appraisalResult: Optional[str] = None
-    userid: Optional[int] = None
     comment: Optional[str] = None
+    reasons: Optional[List[str]] = []
+    customReason: Optional[str] = ""
 
 
 class AppraisalResultBatchRequest(BaseModel):

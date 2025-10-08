@@ -11,6 +11,8 @@ from app.schemas.appraisal import (
 from app.services.appraisal import AppraisalService
 from app.utils.db import get_session
 from app.utils.response import success_response
+from app.core.dependencies import get_current_user_required
+from app.models.user import User
 
 router = APIRouter()
 
@@ -77,10 +79,11 @@ def batch_update_appraisals(
 @router.post("/result/add")
 def batch_add_appraisal_results(
     request: AppraisalResultBatchRequest,
+    current_user: User = Depends(get_current_user_required),
     session: Session = Depends(get_session)
 ):
     try:
-        result = AppraisalService.batch_add_appraisal_results(request, session)
+        result = AppraisalService.batch_add_appraisal_results(request, current_user, session)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"批量添加鉴定结果失败: {str(e)}")

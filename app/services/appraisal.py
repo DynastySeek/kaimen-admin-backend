@@ -12,6 +12,7 @@ from app.schemas.appraisal import (
 )
 from app.utils.db import get_session
 from app.utils.response import success_response
+from app.core.dependencies import get_current_user_required
 
 
 class AppraisalService:
@@ -158,6 +159,7 @@ class AppraisalService:
                 "created_at": str(latest_result.created_at or 0),
                 "result": latest_result.result,
                 "comment": latest_result.notes if latest_result else "",
+                "appraiser_user_id": latest_result.user_id,
                 "appraiser_name": appraiser_name,
                 "appraiser_nickname": appraiser_nickname
             }
@@ -211,7 +213,11 @@ class AppraisalService:
         })
 
     @staticmethod
-    def batch_add_appraisal_results(request: AppraisalResultBatchRequest, session: Session = Depends(get_session)):
+    def batch_add_appraisal_results(
+        request: AppraisalResultBatchRequest, 
+        current_user: User = Depends(get_current_user_required),
+        session: Session = Depends(get_session)
+    ):
         
         success_count = 0
         failed_items = []
@@ -219,21 +225,28 @@ class AppraisalService:
         for item in request.items:
             try:
                 appraisal = session.exec(
-                    select(Appraisal).where(Appraisal.id == item.order_id)
+                    select(Appraisal).where(Appraisal.id == item.appraisalId)
                 ).first()
                 
                 if not appraisal:
-                    failed_items.append({
-                        "order_id": item.order_id,
-                        "reason": "订单不存在"
-                    })
+                    failed_items.append(FailedItem(
+                        appraisal_id=item.appraisalId,
+                        reason="订单不存在"
+                    ))
                     continue
                 
+                # 生成备注内容
+                notes = item.comment or ""
+                if item.reasons:
+                    notes += f" | 原因: {', '.join(item.reasons)}"
+                if item.customReason:
+                    notes += f" | 其他: {item.customReason}"
+                
                 result = AppraisalResult(
-                    appraisal_id=item.order_id,
-                    user_id=item.user_id,
-                    result=str(item.result),
-                    notes=item.notes or "",
+                    order_id=item.appraisalId,
+                    user_id=current_user.id,
+                    result=item.appraisalResult or "未知",
+                    notes=notes,
                     created_at=datetime.now(timezone.utc)
                 )
                 
@@ -241,15 +254,15 @@ class AppraisalService:
                 success_count += 1
                 
             except Exception as e:
-                failed_items.append({
-                    "order_id": item.order_id,
-                    "reason": str(e)
-                })
+                failed_items.append(FailedItem(
+                    appraisal_id=item.appraisalId,
+                    reason=str(e)
+                ))
         
         session.commit()
         
-        return success_response(data={
-            "success_count": success_count,
-            "failed_count": len(failed_items),
-            "failed_items": failed_items
-        })
+        return success_response(data=BatchAddResultData(
+            success_count=success_count,
+            failed_count=len(failed_items),
+            failed_items=failed_items
+        ))

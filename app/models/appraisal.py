@@ -47,7 +47,7 @@ class AppraisalResult(SQLModel, table=True):
     result: str = Field(nullable=False)
     notes: Optional[str] = None
     user_id: Optional[int] = Field(default=None, foreign_key=f"user{get_table_suffix('user')}.id")
-    created_at: Optional[int] = Field(default=None, sa_column=Column("created_at"))
+    created_at: Optional[datetime] = Field(default=None, sa_column=Column("created_at"))
 
 
 class UserInfo(SQLModel, table=True):
