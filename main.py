@@ -30,29 +30,6 @@ app.add_middleware(
 # 注册API路由
 app.include_router(api_router, prefix="/api")
 
-
-@app.get("/", summary="根路径")
-async def root():
-    """
-    根路径接口
-    
-    Returns:
-        dict: 欢迎信息
-    """
-    return {"message": "欢迎使用开门管理后台 API"}
-
-
-@app.get("/health", summary="健康检查")
-async def health_check():
-    """
-    健康检查接口
-    
-    Returns:
-        dict: 健康状态
-    """
-    return {"status": "healthy", "message": "服务运行正常"}
-
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
