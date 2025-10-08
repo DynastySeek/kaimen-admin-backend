@@ -1,206 +1,114 @@
 """
-认证服务层 - 已移除数据库相关功能
+认证服务
 """
-from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-# 注意：SQLAlchemy相关导入已移除
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+from sqlmodel import Session, select
+from fastapi import HTTPException, status, Depends
+from fastapi.security import OAuth2PasswordBearer
+from jose import jwt, JWTError
+
 from ..models.user import User
-from ..config.env import get_settings
-from ..constants.enums import UserStatus
+from ..config.settings import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_SECONDS
+from ..config.database import get_session
 
-# 注意：数据库相关功能已移除
-# 如需使用云数据库，请重新实现相关功能
-
-settings = get_settings()
-
-# 密码加密上下文
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
-class AuthService:
-    """认证服务类"""
+def create_access_token(data: dict, expires_delta: int = ACCESS_TOKEN_EXPIRE_SECONDS) -> str:
+    """
+    创建访问令牌
     
-    @staticmethod
-    def verify_password(plain_password: str, hashed_password: str) -> bool:
-        """
-        验证密码
+    Args:
+        data: 要编码的数据
+        expires_delta: 过期时间（秒）
         
-        Args:
-            plain_password: 明文密码
-            hashed_password: 哈希密码
-            
-        Returns:
-            bool: 验证结果
-        """
-        return pwd_context.verify(plain_password, hashed_password)
+    Returns:
+        str: JWT令牌
+    """
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(seconds=expires_delta)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
+def verify_token(token: str) -> Optional[str]:
+    """
+    验证JWT令牌
     
-    @staticmethod
-    def get_password_hash(password: str) -> str:
-        """
-        获取密码哈希值
+    Args:
+        token: JWT令牌
         
-        Args:
-            password: 明文密码
-            
-        Returns:
-            str: 哈希密码
-        """
-        return pwd_context.hash(password)
+    Returns:
+        Optional[str]: 用户名或None
+    """
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            return None
+        return username
+    except JWTError:
+        return None
+
+
+def authenticate_user(session: Session, username: str, password: str) -> Optional[User]:
+    """
+    用户认证
     
-    @staticmethod
-    def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """
-        创建访问令牌
+    Args:
+        session: 数据库会话
+        username: 用户名
+        password: 密码
         
-        Args:
-            data: 令牌数据
-            expires_delta: 过期时间增量
-            
-        Returns:
-            str: JWT令牌
-        """
-        to_encode = data.copy()
-        if expires_delta:
-            expire = datetime.utcnow() + expires_delta
-        else:
-            expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
-        
-        to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
-        return encoded_jwt
+    Returns:
+        Optional[User]: 用户对象或None
+    """
+    statement = select(User).where(User.name == username)
+    user = session.exec(statement).first()
     
-    @staticmethod
-    def verify_token(token: str) -> dict:
-        """
-        验证令牌
-        
-        Args:
-            token: JWT令牌
-            
-        Returns:
-            dict: 令牌载荷
-            
-        Raises:
-            AuthException: 令牌验证失败
-        """
-        try:
-            payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
-            return payload
-        except JWTError:
-            raise AuthException(
-                code=BusinessCode.AUTH_TOKEN_INVALID,
-                message="令牌无效"
-            )
-    
-    @staticmethod
-    def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
-        """
-        用户认证
-        
-        Args:
-            db: 数据库会话
-            username: 用户名或邮箱
-            password: 密码
-            
-        Returns:
-            Optional[User]: 认证成功返回用户对象，否则返回None
-        """
-        # TODO: 实现用户查询逻辑
-        # user = db.query(User).filter(
-        #     (User.username == username) | (User.email == username)
-        # ).first()
-        
-        # if not user:
-        #     return None
-        
-        # if not AuthService.verify_password(password, user.hashed_password):
-        #     return None
-        
-        # return user
+    if not user:
         return None
     
-    @staticmethod
-    def register_user(db: Session, user_data: UserCreateSchema) -> User:
-        """
-        用户注册
-        
-        Args:
-            db: 数据库会话
-            user_data: 用户注册数据
-            
-        Returns:
-            User: 新创建的用户对象
-            
-        Raises:
-            UserException: 用户已存在等异常
-        """
-        # TODO: 实现用户注册逻辑
-        # 1. 检查用户名和邮箱是否已存在
-        # existing_user = db.query(User).filter(
-        #     (User.username == user_data.username) | (User.email == user_data.email)
-        # ).first()
-        
-        # if existing_user:
-        #     if existing_user.username == user_data.username:
-        #         raise UserException(
-        #             code=BusinessCode.USER_USERNAME_EXISTS,
-        #             message="用户名已存在"
-        #         )
-        #     else:
-        #         raise UserException(
-        #             code=BusinessCode.USER_EMAIL_EXISTS,
-        #             message="邮箱已存在"
-        #         )
-        
-        # 2. 创建新用户
-        # hashed_password = AuthService.get_password_hash(user_data.password)
-        # new_user = User(
-        #     username=user_data.username,
-        #     email=user_data.email,
-        #     hashed_password=hashed_password,
-        #     nickname=user_data.nickname
-        # )
-        
-        # db.add(new_user)
-        # db.commit()
-        # db.refresh(new_user)
-        
-        # return new_user
-        raise NotImplementedError("用户注册功能待实现")
-    
-    @staticmethod
-    def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
-        """
-        根据ID获取用户
-        
-        Args:
-            db: 数据库会话
-            user_id: 用户ID
-            
-        Returns:
-            Optional[User]: 用户对象
-        """
-        # TODO: 实现根据ID查询用户逻辑
-        # return db.query(User).filter(User.id == user_id, User.is_deleted == False).first()
+    # 直接比较明文密码
+    if user.password != password:
         return None
     
-    @staticmethod
-    def get_user_by_username(db: Session, username: str) -> Optional[User]:
-        """
-        根据用户名获取用户
+    return user
+
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    session: Session = Depends(get_session)
+) -> User:
+    """
+    获取当前用户
+    
+    Args:
+        token: JWT令牌
+        session: 数据库会话
         
-        Args:
-            db: 数据库会话
-            username: 用户名
-            
-        Returns:
-            Optional[User]: 用户对象
-        """
-        # TODO: 实现根据用户名查询用户逻辑
-        # return db.query(User).filter(
-        #     User.username == username, 
-        #     User.is_deleted == False
-        # ).first()
-        return None
+    Returns:
+        User: 当前用户
+        
+    Raises:
+        HTTPException: 认证失败时抛出401错误
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    username = verify_token(token)
+    if username is None:
+        raise credentials_exception
+    
+    statement = select(User).where(User.name == username)
+    user = session.exec(statement).first()
+    
+    if user is None:
+        raise credentials_exception
+    
+    return user

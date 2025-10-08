@@ -1,49 +1,85 @@
 """
-认证相关接口 - 已移除数据库相关功能
+认证相关API端点
 """
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import JSONResponse
-# 注意：SQLAlchemy相关导入已移除
-from ...schemas.user import UserLoginSchema, UserLoginResponseSchema
-from ...core.response import success_response, error_response
-from ...constants.status_codes import BusinessCode
-# 注意：数据库依赖已移除
+from fastapi import APIRouter, HTTPException, status, Depends
+from sqlmodel import Session
 
-# 注意：数据库相关功能已移除
-# 如需使用云数据库，请重新实现相关功能
+from ...schemas.auth import LoginRequest, LoginResponse, UserInfo
+from ...services.auth_service import authenticate_user, create_access_token, get_current_user
+from ...config.database import get_session
+from ...models.user import User
 
 router = APIRouter()
 
 
-@router.post("/login", response_model=UserLoginResponseSchema, summary="用户登录")
-async def login(
-    login_data: UserLoginSchema
-) -> JSONResponse:
+@router.post("/login", response_model=LoginResponse, summary="用户登录")
+def login(request: LoginRequest, session: Session = Depends(get_session)):
     """
-    用户登录接口 - 已移除数据库功能
+    用户登录接口
     
     Args:
-        login_data: 登录数据
-    
+        request: 登录请求数据
+        session: 数据库会话
+        
     Returns:
-        JSONResponse: 登录响应
+        LoginResponse: 登录响应
+        
+    Raises:
+        HTTPException: 认证失败时抛出401错误
     """
-    # TODO: 实现登录逻辑
-    # 1. 验证用户名和密码
-    # 2. 生成 JWT token
-    # 3. 返回用户信息和 token
-    # 需要根据云数据库服务重新实现
+    # 验证用户
+    user = authenticate_user(session, request.username, request.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户名或密码错误"
+        )
     
-    return success_response(
+    # 创建访问令牌
+    access_token = create_access_token(data={"sub": user.name})
+    
+    # 返回登录响应
+    return LoginResponse(
+        code=200,
+        message="登录成功",
         data={
-            "access_token": "example_token",
+            "access_token": access_token,
             "token_type": "bearer",
-            "expires_in": 1800,
+            "expires_in": 7200,
             "user": {
-                "id": 1,
-                "username": login_data.username,
-                "email": "user@example.com"
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "role": user.role,
+                "nickname": user.nickname,
+                "phone": user.phone,
+                "avatar": user.avatar
             }
-        },
-        message="登录成功"
+        }
     )
+
+
+@router.get("/user/info", summary="获取用户信息")
+def get_user_info(current_user: User = Depends(get_current_user)):
+    """
+    获取当前用户信息
+    
+    Args:
+        current_user: 当前用户
+        
+    Returns:
+        dict: 用户信息响应
+    """
+    return {
+        "code": 200,
+        "message": "获取用户信息成功",
+        "data": {
+            "id": current_user.id,
+            "name": current_user.name,
+            "email": current_user.email,
+            "role": current_user.role,
+            "nickname": current_user.nickname,
+            "phone": current_user.phone,
+            "avatar": current_user.avatar
+        }
+    }
