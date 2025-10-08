@@ -321,7 +321,7 @@ def get_batch_appraisal_detail(
 
 
 # ---------- 批量更新订单类目和状态接口 ----------
-@app.post("/api/order/update", response_model=OrderUpdateResponse)
+@app.post("/api/appraisal/update", response_model=OrderUpdateResponse)
 def update_appraisal_info(
     updates: List[AppraisalUpdateItem],
     session: Session = Depends(get_session),
