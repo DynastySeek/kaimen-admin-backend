@@ -4,12 +4,14 @@ from typing import List, Optional
 from datetime import datetime, timezone
 
 from app.models.appraisal import Appraisal, AppraisalResource, AppraisalResult, UserInfo
+from app.models.user import User
 from app.schemas.appraisal import (
     BatchDetailRequest, AppraisalDetail, LatestAppraisalData,
     BatchUpdateRequest, BatchUpdateResult, AppraisalUpdateItem,
     OrderUpdateResult, AppraisalResultBatchRequest, BatchAddResultData, FailedItem
 )
 from app.utils.db import get_session
+from app.utils.response import success_response
 
 
 class AppraisalService:
@@ -101,9 +103,15 @@ class AppraisalService:
                 elif r.url.lower().endswith((".mp4", ".mov", ".avi")):
                     videos.append(r.url)
 
+            # 获取用户信息（包含手机号）
+            user_info = session.exec(
+                select(UserInfo).where(UserInfo.id == a.userinfo_id)
+            ).first()
+
             result_list.append({
-                "appraisal_id": a.id,
+                "id": a.id,
                 "title": a.title or "",
+                "user_phone": user_info.phone if user_info else None,
                 "description": a.desc or "",
                 "appraisal_status": a.appraisal_status or "",
                 "first_class": a.first_class or "",
@@ -112,181 +120,176 @@ class AppraisalService:
                 "create_time": a.appraisal_create_time,
             })
 
-        return {
-            "code": 200,
-            "message": "查询成功",
-            "data": {
-                "total": total,
-                "page": page,
-                "page_size": pageSize,
-                "total_pages": (total + pageSize - 1) // pageSize,
-                "list": result_list,
-            },
-        }
+        return success_response(data={
+            "list": result_list,
+            "total": total,
+            "page": page,
+            "pageSize": pageSize
+        })
 
     @staticmethod
-    def get_batch_details(request: BatchDetailRequest, session: Session = Depends(get_session)) -> List[AppraisalDetail]:
-        details = []
+    def get_appraisal_result(request: BatchDetailRequest, session: Session = Depends(get_session)):
         
-        for order_id in request.ids:
+        result_list = []
+        
+        for appraisal_id in request.ids:
             appraisal = session.exec(
-                select(Appraisal).where(Appraisal.id == order_id)
+                select(Appraisal).where(Appraisal.id == appraisal_id)
             ).first()
             
             if not appraisal:
                 continue
                 
-            user_info = session.exec(
-                select(UserInfo).where(UserInfo.id == appraisal.userinfo_id)
-            ).first()
-            
             latest_result = session.exec(
-                select(AppraisalResult).where(AppraisalResult.order_id == order_id)
+                select(AppraisalResult).where(AppraisalResult.order_id == appraisal_id)
                 .order_by(AppraisalResult.created_at.desc())
             ).first()
             
-            latest_appraisal = LatestAppraisalData(
-                id=order_id,
-                user_id=appraisal.userinfo_id or "",
-                create_time=str(appraisal.appraisal_create_time or 0),
-                update_time="",
-                appraisal_status=int(appraisal.appraisal_status or 0),
-                appraisal_result=latest_result.result if latest_result else "",
-                notes=latest_result.notes if latest_result else "",
-                result=latest_result.result if latest_result else "",
-                reasons=[],
-                custom_reason=""
-            )
+            # 查询鉴定师信息
+            appraiser_name = ""
+            appraiser_nickname = ""
+            if latest_result and latest_result.user_id:
+                user = session.exec(
+                    select(User).where(User.id == latest_result.user_id)
+                ).first()
+                if user:
+                    appraiser_name = user.name or ""
+                    appraiser_nickname = user.nickname or ""
             
-            detail = AppraisalDetail(
-                order_id=order_id,
-                title=appraisal.title or "",
-                user_phone=user_info.phone if user_info else None,
-                description=appraisal.desc or "",
-                appraisal_class=appraisal.first_class or "",
-                create_time=str(appraisal.appraisal_create_time or 0),
-                latest_appraisal=latest_appraisal
-            )
+            latest_appraisal_data = {
+                "appraisal_id": appraisal_id,
+                "create_time": str(appraisal.appraisal_create_time or 0),
+                "appraisal_status": int(appraisal.appraisal_status or 0),
+                "appraisal_result": int(latest_result.result) if latest_result and latest_result.result else 0,
+                "comment": latest_result.notes if latest_result else "",
+                "reasons": [],
+                "custom_reason": "",
+                "appraiser_name": appraiser_name,
+                "appraiser_nickname": appraiser_nickname
+            }
             
-            details.append(detail)
+            result_list.append(latest_appraisal_data)
             
-        return details
+        return success_response(data=result_list, message="查询成功")
 
     @staticmethod
-    def batch_update_appraisals(request: BatchUpdateRequest, session: Session = Depends(get_session)) -> BatchUpdateResult:
+    def batch_update_appraisals(request: BatchUpdateRequest, session: Session = Depends(get_session)):
+        
         success_count = 0
-        failed_count = 0
         failed_items = []
         
         for item in request.items:
             try:
                 appraisal = session.exec(
-                    select(Appraisal).where(Appraisal.id == item.appraisalId)
+                    select(Appraisal).where(Appraisal.id == item.order_id)
                 ).first()
                 
                 if not appraisal:
-                    failed_count += 1
-                    failed_items.append(item.appraisalId)
-                    continue
-                
-                if item.appraisalClass is not None:
-                    appraisal.first_class = item.appraisalClass
-                
-                if item.appraisalResult is not None:
-                    appraisal.appraisal_status = str(item.appraisalResult)
-                
-                session.add(appraisal)
-                
-                if item.comment or item.appraisalResult is not None:
-                    result = AppraisalResult(
-                        order_id=item.appraisalId,
-                        result=str(item.appraisalResult) if item.appraisalResult is not None else "",
-                        notes=item.comment or "",
-                        created_at=datetime.now(timezone.utc)
-                    )
-                    session.add(result)
-                
-                success_count += 1
-                
-            except Exception as e:
-                failed_count += 1
-                failed_items.append(item.appraisalId)
-        
-        session.commit()
-        
-        return BatchUpdateResult(
-            success_count=success_count,
-            failed_count=failed_count,
-            failed_items=failed_items
-        )
-
-    @staticmethod
-    def batch_update_orders(items: List[AppraisalUpdateItem], session: Session = Depends(get_session)) -> List[OrderUpdateResult]:
-        results = []
-        
-        for item in items:
-            try:
-                appraisal = session.exec(
-                    select(Appraisal).where(Appraisal.id == item.id)
-                ).first()
-                
-                if not appraisal:
-                    results.append(OrderUpdateResult(
-                        order_id=item.id,
-                        success=False,
-                        message="订单不存在"
+                    failed_items.append(FailedItem(
+                        order_id=item.order_id,
+                        reason="订单不存在"
                     ))
                     continue
                 
                 if item.appraisal_status is not None:
                     appraisal.appraisal_status = str(item.appraisal_status)
+                if item.appraisal_result is not None:
+                    appraisal.appraisal_result = str(item.appraisal_result)
+                if item.notes:
+                    appraisal.notes = item.notes
                 
-                if item.appraisal_class is not None:
-                    appraisal.first_class = item.appraisal_class
+                appraisal.appraisal_update_time = int(datetime.now(timezone.utc).timestamp() * 1000)
                 
                 session.add(appraisal)
-                
-                results.append(OrderUpdateResult(
-                    order_id=item.id,
-                    success=True,
-                    message="更新成功"
-                ))
+                success_count += 1
                 
             except Exception as e:
-                results.append(OrderUpdateResult(
-                    order_id=item.id,
-                    success=False,
-                    message=f"更新失败: {str(e)}"
+                failed_items.append(FailedItem(
+                    order_id=item.order_id,
+                    reason=str(e)
                 ))
         
         session.commit()
-        return results
+        
+        return success_response(data={
+            "success_count": success_count,
+            "failed_count": len(failed_items),
+            "failed_items": [item.dict() for item in failed_items]
+        })
 
     @staticmethod
-    def batch_add_appraisal_results(request: AppraisalResultBatchRequest, session: Session = Depends(get_session)) -> BatchAddResultData:
+    def batch_update_orders(items: List[AppraisalUpdateItem], session: Session = Depends(get_session)):
+        
+        results = []
+        
+        for item in items:
+            try:
+                appraisal = session.exec(
+                    select(Appraisal).where(Appraisal.id == item.order_id)
+                ).first()
+                
+                if not appraisal:
+                    results.append({
+                        "order_id": item.order_id,
+                        "success": False,
+                        "message": "订单不存在"
+                    })
+                    continue
+                
+                if item.appraisal_status is not None:
+                    appraisal.appraisal_status = str(item.appraisal_status)
+                if item.appraisal_result is not None:
+                    appraisal.appraisal_result = str(item.appraisal_result)
+                if item.notes:
+                    appraisal.notes = item.notes
+                
+                appraisal.appraisal_update_time = int(datetime.now(timezone.utc).timestamp() * 1000)
+                
+                session.add(appraisal)
+                
+                results.append({
+                    "order_id": item.order_id,
+                    "success": True,
+                    "message": "更新成功"
+                })
+                
+            except Exception as e:
+                results.append({
+                    "order_id": item.order_id,
+                    "success": False,
+                    "message": str(e)
+                })
+        
+        session.commit()
+        
+        return success_response(data=results)
+
+    @staticmethod
+    def batch_add_appraisal_results(request: AppraisalResultBatchRequest, session: Session = Depends(get_session)):
+        
         success_count = 0
-        failed_count = 0
         failed_items = []
         
         for item in request.items:
             try:
                 appraisal = session.exec(
-                    select(Appraisal).where(Appraisal.id == item.orderid)
+                    select(Appraisal).where(Appraisal.id == item.order_id)
                 ).first()
                 
                 if not appraisal:
-                    failed_count += 1
-                    failed_items.append(FailedItem(
-                        order_id=int(item.orderid) if item.orderid.isdigit() else 0,
-                        reason="订单不存在"
-                    ))
+                    failed_items.append({
+                        "order_id": item.order_id,
+                        "reason": "订单不存在"
+                    })
                     continue
                 
                 result = AppraisalResult(
-                    order_id=item.orderid,
-                    result=item.appraisalResult or "",
-                    notes=item.comment or "",
-                    user_id=item.userid,
+                    order_id=item.order_id,
+                    user_id=item.user_id,
+                    result=str(item.result),
+                    notes=item.notes or "",
+                    reasons=item.reasons or [],
+                    custom_reason=item.custom_reason or "",
                     created_at=datetime.now(timezone.utc)
                 )
                 
@@ -294,16 +297,15 @@ class AppraisalService:
                 success_count += 1
                 
             except Exception as e:
-                failed_count += 1
-                failed_items.append(FailedItem(
-                    order_id=int(item.orderid) if item.orderid.isdigit() else 0,
-                    reason=f"添加失败: {str(e)}"
-                ))
+                failed_items.append({
+                    "order_id": item.order_id,
+                    "reason": str(e)
+                })
         
         session.commit()
         
-        return BatchAddResultData(
-            success_count=success_count,
-            failed_count=failed_count,
-            failed_items=failed_items
-        )
+        return success_response(data={
+            "success_count": success_count,
+            "failed_count": len(failed_items),
+            "failed_items": failed_items
+        })

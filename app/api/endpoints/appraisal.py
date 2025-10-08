@@ -50,37 +50,37 @@ def get_appraisal_list(
         raise HTTPException(status_code=500, detail=f"获取鉴定列表失败: {str(e)}")
 
 
-@router.post("/detail", response_model=BatchDetailResponse)
-def get_batch_detail(
+@router.post("/result")
+def get_appraisal_result(
     request: BatchDetailRequest,
     session: Session = Depends(get_session)
 ):
     try:
-        details = AppraisalService.get_batch_details(request, session)
-        return BatchDetailResponse(data=details)
+        result = AppraisalService.get_appraisal_result(request, session)
+        return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取批量详情失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取鉴定详情失败: {str(e)}")
 
 
-@router.post("/update", response_model=OrderUpdateResponse)
+@router.post("/update")
 def batch_update_orders(
     items: List[AppraisalUpdateItem],
     session: Session = Depends(get_session)
 ):
     try:
-        results = AppraisalService.batch_update_orders(items, session)
-        return OrderUpdateResponse(data=results)
+        result = AppraisalService.batch_update_orders(items, session)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"批量更新订单失败: {str(e)}")
 
 
-@router.post("/result/add", response_model=BatchAddResultResponse)
+@router.post("/result/add")
 def batch_add_appraisal_results(
     request: AppraisalResultBatchRequest,
     session: Session = Depends(get_session)
 ):
     try:
         result = AppraisalService.batch_add_appraisal_results(request, session)
-        return BatchAddResultResponse(data=result)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"批量添加鉴定结果失败: {str(e)}")
