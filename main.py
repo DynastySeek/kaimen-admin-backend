@@ -1,10 +1,16 @@
 """
 FastAPI 基础应用
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.router import api_router
+from app.core.exception_handler import (
+    http_exception_handler,
+    starlette_exception_handler,
+    general_exception_handler
+)
 
 # 创建 FastAPI 应用实例
 app = FastAPI(
@@ -26,6 +32,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 注册全局异常处理器
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(StarletteHTTPException, starlette_exception_handler)
+app.add_exception_handler(Exception, general_exception_handler)
 
 # 注册API路由
 app.include_router(api_router, prefix="/api")

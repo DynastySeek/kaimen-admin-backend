@@ -12,15 +12,6 @@ router = APIRouter()
 
 @router.get("/info", summary="获取用户信息")
 def get_user_info(current_user: User = Depends(get_current_user_required)):
-    """
-    获取当前用户信息
-    
-    Args:
-        current_user: 当前登录用户
-        
-    Returns:
-        dict: 用户信息响应
-    """
     return success_response(
         data={
             "id": current_user.id,
