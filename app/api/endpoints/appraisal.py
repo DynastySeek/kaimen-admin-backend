@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
-from typing import List, Optional
+from typing import List, Optional, Annotated
+from pydantic import Field
+import re
 
 from app.schemas.appraisal import (
     BatchDetailRequest, BatchDetailResponse, AppraisalDetail,
@@ -30,6 +32,7 @@ def get_appraisal_list(
     updateStartTime: Optional[str] = None,
     updateEndTime: Optional[str] = None,
     appraiserId: Optional[int] = None,
+    userPhone: Optional[str] = Query(None, regex=r'^1[3-9]\d{9}$', description="用户手机号，必须是11位有效手机号"),
     session: Session = Depends(get_session)
 ):
     try:
@@ -45,6 +48,7 @@ def get_appraisal_list(
             updateStartTime=updateStartTime,
             updateEndTime=updateEndTime,
             appraiserId=appraiserId,
+            userPhone=userPhone,
             session=session
         )
         return result

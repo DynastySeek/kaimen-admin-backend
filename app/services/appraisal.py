@@ -30,6 +30,7 @@ class AppraisalService:
         updateStartTime: Optional[str] = None,
         updateEndTime: Optional[str] = None,
         appraiserId: Optional[int] = None,
+        userPhone: Optional[str] = None,
         session: Session = Depends(get_session)
     ):
         from sqlalchemy import func, and_, true
@@ -73,6 +74,19 @@ class AppraisalService:
             )
             filters.append(Appraisal.id.in_(latest_result_subquery))
 
+        # 用户手机号过滤 - 通过手机号查询userinfo表获取userinfo_id
+        if userPhone:
+            userinfo_subquery = (
+                select(UserInfo.id)
+                .where(UserInfo.phone == userPhone)
+            )
+            userinfo_ids = session.exec(userinfo_subquery).all()
+            if userinfo_ids:
+                filters.append(Appraisal.userinfo_id.in_(userinfo_ids))
+            else:
+                # 如果没有找到对应的用户，返回空结果
+                filters.append(Appraisal.id == -1)
+
         if not filters:
             filters.append(true())
             
@@ -83,7 +97,7 @@ class AppraisalService:
         stmt = (
             select(Appraisal)
             .where(and_(*filters))
-            .order_by(Appraisal.created_at.desc())
+            .order_by(Appraisal.updated_at.asc())
             .offset((page - 1) * pageSize)
             .limit(pageSize)
         )
@@ -158,7 +172,7 @@ class AppraisalService:
                 "appraisal_id": appraisal_id,
                 "created_at": str(latest_result.created_at or 0),
                 "result": latest_result.result,
-                "comment": latest_result.notes if latest_result else "",
+                "notes": latest_result.notes,
                 "appraiser_user_id": latest_result.user_id,
                 "appraiser_name": appraiser_name,
                 "appraiser_nickname": appraiser_nickname
@@ -191,9 +205,6 @@ class AppraisalService:
                     appraisal.appraisal_status = str(item.appraisal_status)
                 if item.appraisal_class is not None:
                     appraisal.first_class = str(item.appraisal_class)
-                
-                # 更新时间
-                appraisal.updated_at = int(datetime.now(timezone.utc).timestamp() * 1000)
                 
                 session.add(appraisal)
                 success_count += 1
@@ -239,8 +250,6 @@ class AppraisalService:
                 notes = item.comment or ""
                 if item.reasons:
                     notes += f" | 原因: {', '.join(item.reasons)}"
-                if item.customReason:
-                    notes += f" | 其他: {item.customReason}"
                 
                 result = AppraisalResult(
                     appraisal_id=item.appraisalId,

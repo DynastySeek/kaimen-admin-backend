@@ -114,7 +114,6 @@ class AppraisalResultItem(BaseModel):
     appraisalResult: Optional[str] = None
     comment: Optional[str] = None
     reasons: Optional[List[str]] = []
-    customReason: Optional[str] = ""
 
 
 class AppraisalResultBatchRequest(BaseModel):

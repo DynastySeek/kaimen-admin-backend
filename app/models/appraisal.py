@@ -56,3 +56,5 @@ class UserInfo(SQLModel, table=True):
 
     id: str = Field(sa_column_kwargs={"name": "_id"}, primary_key=True)
     phone: Optional[str] = None
+    created_at: Optional[int] = Field(default=None, sa_column=Column("createdAt"))
+    nick_name: Optional[str] = None
