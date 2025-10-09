@@ -17,3 +17,4 @@ COPY jianbao-backend-deployment/backend/ ./backend/
 
 # 可改为 uvicorn 的命令行参数或使用 gunicorn + uvicorn workers
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--loop", "uvloop", "--workers", "1"]
+
