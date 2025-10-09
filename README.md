@@ -148,22 +148,111 @@ mypy .
 
 ## 部署
 
-### Docker 部署
+### 手动 Docker 部署
 
-```dockerfile
-# Dockerfile 示例
-FROM python:3.11-slim
+#### 1. 环境准备
+```bash
+# 确保 Docker 已安装
+docker --version
 
-WORKDIR /app
+# 检查当前目录
+pwd
+# 应该在项目根目录
+```
 
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+#### 2. 构建应用镜像
+```bash
+# 构建 FastAPI 应用镜像
+docker build -t kaimen-admin-backend .
 
-COPY . .
+# 查看构建的镜像
+docker images | grep kaimen
+```
 
-EXPOSE 8000
+#### 3. 启动应用服务
+```bash
+# 启动 FastAPI 应用
+docker run -d \
+  --name kaimen-admin-backend \
+  --restart unless-stopped \
+  -p 8000:8000 \
+  -e PYTHONPATH=/app \
+  --env-file .env.prod \
+  -v $(pwd)/logs:/app/logs \
+  kaimen-admin-backend
+```
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+#### 4. 验证部署
+
+**检查容器状态**
+```bash
+# 查看容器状态
+docker ps -a
+
+# 查看容器日志
+docker logs kaimen-admin-backend
+```
+
+**测试服务**
+```bash
+# 测试 FastAPI 应用
+curl http://localhost:8000/api/health
+
+# 访问 API 文档
+open http://localhost:8000/docs
+```
+
+#### 5. 常用管理命令
+
+**查看状态**
+```bash
+# 查看容器状态
+docker ps
+
+# 查看资源使用情况
+docker stats kaimen-admin-backend
+```
+
+**日志管理**
+```bash
+# 查看实时日志
+docker logs -f kaimen-admin-backend
+
+# 查看最近 100 行日志
+docker logs --tail 100 kaimen-admin-backend
+```
+
+**停止和清理**
+```bash
+# 停止服务
+docker stop kaimen-admin-backend
+
+# 删除容器
+docker rm kaimen-admin-backend
+
+# 删除镜像（可选）
+docker rmi kaimen-admin-backend
+```
+
+### Docker Compose 部署（简化方式）
+
+如果觉得手动命令太多，可以使用 docker-compose：
+
+```bash
+# 一键启动服务
+docker-compose up -d
+
+# 查看状态
+docker-compose ps
+
+# 查看日志
+docker-compose logs -f
+
+# 停止服务
+docker-compose down
+
+# 重启服务
+docker-compose restart
 ```
 
 ### 生产环境注意事项
@@ -174,6 +263,9 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 4. 关闭调试模式 (`DEBUG=false`)
 5. 配置日志记录
 6. 设置反向代理 (Nginx)
+7. 配置 SSL 证书
+8. 设置防火墙规则
+9. 定期备份数据
 
 ## 许可证
 
