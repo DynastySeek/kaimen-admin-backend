@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, Security, Query
 from sqlmodel import SQLModel, Session, create_engine, select, and_, true
 from typing import Optional , List
 from datetime import datetime, timedelta, timezone
-from models import User, LoginRequest, LoginResponse, BatchDetailRequest, Appraisal, UserInfo, \
+from backend.models import User, LoginRequest, LoginResponse, BatchDetailRequest, Appraisal, UserInfo, \
                     BatchDetailResponse , AppraisalResource, AppraisalResult, AppraisalUpdateItem, OrderUpdateResult, \
                     OrderUpdateResponse, AppraisalResultBatchRequest, BatchAddResultResponse, BatchAddResultData, FailedItem, \
                     LatestAppraisalData
