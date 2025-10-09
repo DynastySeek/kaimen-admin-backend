@@ -3,13 +3,10 @@ API 路由配置
 """
 from fastapi import APIRouter
 
-from app.api.endpoints import auth, user, appraisal, health
+from app.api.endpoints import auth, user, appraisal
 
 # 创建主路由
 api_router = APIRouter()
-
-# 注册健康检查路由
-api_router.include_router(health.router, tags=["系统"])
 
 # 注册认证相关路由
 api_router.include_router(auth.router, prefix="/auth", tags=["认证"])

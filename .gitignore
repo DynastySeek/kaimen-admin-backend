@@ -154,3 +154,6 @@ uploads/
 test_uploads/
 *.db
 *.sqlite
+
+# Docker deployment documentation (不提交到版本控制)
+DOCKER_DEPLOY.md
