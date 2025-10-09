@@ -25,8 +25,9 @@ data:
       
     cors:
       allow_origins:
-        - "https://admin.kaimen.site"
-        - "https://*.jianbao.com"
+        - "http://admin.kaimen.site"
+        - "http://admin-test.kaimen.site"
+        - "http://*.kaimen.site"
       allow_methods:
         - "GET"
         - "POST"
@@ -59,4 +60,3 @@ data:
     
     task_soft_time_limit: 300
     task_time_limit: 600
-    
