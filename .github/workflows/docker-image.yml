@@ -50,20 +50,19 @@ jobs:
 
       - name: Set IMAGE_TAG environment variable
         run: |
-          # 使用 docker metadata action 输出的第一个 tag 作为镜像 tag
-          TAG=$(echo "${{ steps.meta.outputs.tags }}" | cut -d',' -f1)
+          # 取 metadata action 输出的最后一行 commit tag
+          TAG=$(echo "${{ steps.meta.outputs.tags }}" | tail -n1)
           echo "IMAGE_TAG=$TAG" >> $GITHUB_ENV
 
-      - name: Update Helm values.yaml with new image tag
+      - name: Update Helm values.yaml with commit tag
         run: |
           echo "Updating charts/kaimen-backend/values.yaml with image tag $IMAGE_TAG"
           yq e ".image.tag = \"${IMAGE_TAG##*:}\"" -i charts/kaimen-backend/values.yaml
 
-      - name: Commit updated values.yaml
+      - name: Commit updated values.yaml (skip CI)
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add charts/kaimen-backend/values.yaml
-          git commit -m "Update kaimen-backend image tag to ${IMAGE_TAG##*:}" || echo "No changes to commit"
+          git commit -m "Update kaimen-backend image tag to ${IMAGE_TAG##*:} [skip ci]" || echo "No changes to commit"
           git push origin main
-
