@@ -266,11 +266,3 @@ docker-compose restart
 7. 配置 SSL 证书
 8. 设置防火墙规则
 9. 定期备份数据
-
-## 许可证
-
-MIT License
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！

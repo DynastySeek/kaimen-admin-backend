@@ -12,6 +12,10 @@ class ResponseCode:
     # HTTP状态码
     HTTP_SUCCESS = 200   # HTTP成功
     HTTP_ERROR = 500     # HTTP服务器错误
+    
+    # 认证和授权相关
+    UNAUTHORIZED = 401   # 未授权
+    FORBIDDEN = 403      # 禁止访问
 
 
 class ResponseMessage:

@@ -8,7 +8,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.services.auth import verify_token
 from app.services.user import get_user_by_id
 from app.models.user import User
-from app.utils.response import ResponseCode
+from app.constants.response_codes import ResponseCode
 
 # HTTP Bearer 认证方案
 security = HTTPBearer(auto_error=False)
