@@ -111,7 +111,7 @@ class BatchAddResultResponse(BaseModel):
 class AppraisalResultItem(BaseModel):
     """鉴定结果项模式"""
     appraisalId: str
-    appraisalResult: Optional[str] = None
+    appraisalResult: str
     comment: Optional[str] = None
     reasons: Optional[List[str]] = []
 

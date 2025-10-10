@@ -19,6 +19,9 @@ class Appraisal(SQLModel, table=True):
     created_at: Optional[int] = Field(default=None, sa_column=Column("createdAt"))
     updated_at: Optional[int] = Field(default=None, sa_column=Column("updatedAt"))
     userinfo_id: Optional[str] = Field(default=None, sa_column=Column("userinfo_id", String(64)))
+    last_appraiser_id: Optional[int] = Field(default=None, description="最新鉴定人id")
+    last_appraisal_result_id: Optional[int] = Field(default=None, description="最新鉴定结果id")
+    appraisal_result: Optional[str] = Field(default=None, max_length=64, description="鉴定结果")
 
     resources: List["AppraisalResource"] = Relationship(back_populates="appraisal")
 

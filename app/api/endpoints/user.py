@@ -1,6 +1,3 @@
-"""
-用户相关API端点
-"""
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, Path
 
@@ -19,7 +16,6 @@ router = APIRouter()
 
 @router.get("/current", summary="获取当前用户信息")
 def get_user_info(current_user: User = Depends(get_current_user_required)):
-    """获取当前用户信息"""
     return success_response(
         data={
             "id": current_user.id,
@@ -46,7 +42,6 @@ def get_user_list(
     phone: Optional[str] = Query(None, description="手机号"),
     session: Session = Depends(get_session)
 ):
-    """分页获取用户列表，支持查询条件（id, name, nickname, phone）"""
     return UserService.get_user_list(
         page=page,
         pageSize=pageSize,
@@ -63,7 +58,6 @@ def get_user_detail(
     user_id: int = Path(..., description="用户ID"),
     session: Session = Depends(get_session)
 ):
-    """根据ID获取用户详情"""
     return UserService.get_user_by_id(user_id=user_id, session=session)
 
 
@@ -73,7 +67,6 @@ def create_user(
     admin_user: User = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """创建用户（管理员权限）"""
     return UserService.create_user(request=request, session=session)
 
 
@@ -83,7 +76,6 @@ def update_current_user(
     current_user: User = Depends(get_current_user_required),
     session: Session = Depends(get_session)
 ):
-    """更新当前用户信息（name, nickname, password, email, phone, avatar）"""
     return UserService.update_current_user(
         current_user=current_user,
         request=request,
@@ -98,7 +90,6 @@ def update_user_by_id(
     admin_user: User = Depends(get_admin_user),
     session: Session = Depends(get_session)
 ):
-    """根据ID更新用户信息（管理员权限）所有字段"""
     return UserService.update_user_by_id(
         user_id=user_id,
         request=request,

@@ -31,8 +31,9 @@ def get_appraisal_list(
     createEndTime: Optional[str] = None,
     updateStartTime: Optional[str] = None,
     updateEndTime: Optional[str] = None,
-    appraiserId: Optional[int] = None,
+    lastAppraiserId: Optional[int] = None,
     userPhone: Optional[str] = Query(None, regex=r'^1[3-9]\d{9}$', description="用户手机号，必须是11位有效手机号"),
+    appraisalResult: Optional[str] = None,
     session: Session = Depends(get_session)
 ):
     try:
@@ -47,8 +48,9 @@ def get_appraisal_list(
             createEndTime=createEndTime,
             updateStartTime=updateStartTime,
             updateEndTime=updateEndTime,
-            appraiserId=appraiserId,
+            lastAppraiserId=lastAppraiserId,
             userPhone=userPhone,
+            appraisalResult=appraisalResult,
             session=session
         )
         return result
