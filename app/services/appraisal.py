@@ -60,9 +60,9 @@ class AppraisalService:
             
         # 更新时间范围过滤
         if updateStartTime and (start_t := parse_time(updateStartTime)):
-            filters.append(Appraisal.updatedAt >= start_t * 1000)
+            filters.append(Appraisal.updated_at >= start_t * 1000)
         if updateEndTime and (end_t := parse_time(updateEndTime)):
-            filters.append(Appraisal.updatedAt <= end_t * 1000)
+            filters.append(Appraisal.updated_at <= end_t * 1000)
             
         # 鉴定师过滤 - 查询最后提交鉴定结果的鉴定师
         if appraiserId:
