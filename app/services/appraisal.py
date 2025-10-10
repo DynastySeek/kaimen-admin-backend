@@ -29,8 +29,9 @@ class AppraisalService:
         createEndTime: Optional[str] = None,
         updateStartTime: Optional[str] = None,
         updateEndTime: Optional[str] = None,
-        appraiserId: Optional[int] = None,
+        lastAppraiserId: Optional[int] = None,
         userPhone: Optional[str] = None,
+        appraisalResult: Optional[str] = None,
         session: Session = Depends(get_session)
     ):
         from sqlalchemy import func, and_, true
@@ -63,16 +64,12 @@ class AppraisalService:
             filters.append(Appraisal.updated_at >= start_t * 1000)
         if updateEndTime and (end_t := parse_time(updateEndTime)):
             filters.append(Appraisal.updated_at <= end_t * 1000)
-            
         # 鉴定师过滤 - 查询最后提交鉴定结果的鉴定师
-        if appraiserId:
-            # 子查询获取每个订单的最新鉴定结果
-            latest_result_subquery = (
-                select(AppraisalResult.appraisal_id)
-                .where(AppraisalResult.user_id == appraiserId)
-                .distinct()
-            )
-            filters.append(Appraisal.id.in_(latest_result_subquery))
+        if lastAppraiserId:
+            filters.append(Appraisal.last_appraiser_id == lastAppraiserId)
+        # 鉴定结果过滤
+        if appraisalResult:
+            filters.append(Appraisal.appraisal_result == appraisalResult)
 
         # 用户手机号过滤 - 通过手机号查询userinfo表获取userinfo_id
         if userPhone:
@@ -133,6 +130,9 @@ class AppraisalService:
                 "images": images,
                 "videos": videos,
                 "create_time": a.created_at,
+                "last_appraiser_id": a.last_appraiser_id,
+                "last_appraisal_result_id": a.last_appraisal_result_id,
+                "appraisal_result": a.appraisal_result,
             })
 
         return success_response(data={
@@ -254,12 +254,20 @@ class AppraisalService:
                 result = AppraisalResult(
                     appraisal_id=item.appraisalId,
                     user_id=current_user.id,
-                    result=item.appraisalResult or "未知",
+                    result=item.appraisalResult,
                     notes=notes,
                     created_at=datetime.now(timezone.utc)
                 )
                 
                 session.add(result)
+                session.flush()  # 获取新插入记录的ID
+                
+                # 更新Appraisal的新字段
+                appraisal.last_appraiser_id = current_user.id
+                appraisal.last_appraisal_result_id = result.id
+                appraisal.appraisal_result = item.appraisalResult
+                
+                session.add(appraisal)
                 success_count += 1
                 
             except Exception as e:

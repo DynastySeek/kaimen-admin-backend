@@ -1,6 +1,3 @@
-"""
-认证相关API端点
-"""
 from fastapi import APIRouter, HTTPException, status, Depends
 from sqlmodel import Session
 
@@ -11,6 +8,8 @@ from app.utils.response import success_response, error_response
 from app.constants.response_codes import ResponseCode
 from app.utils.db import get_session
 from app.config.settings import ACCESS_TOKEN_EXPIRE_SECONDS
+from app.core.dependencies import get_current_user_required
+from app.models.user import User
 
 router = APIRouter()
 
@@ -32,4 +31,15 @@ def login(request: LoginRequest, session: Session = Depends(get_session)):
             "expires_in": ACCESS_TOKEN_EXPIRE_SECONDS,
         },
         message="登录成功"
+    )
+
+
+@router.post("/logout", summary="用户登出")
+def logout(current_user: User = Depends(get_current_user_required)):
+    return success_response(
+        data={
+            "user_id": current_user.id,
+            "username": current_user.name
+        },
+        message="登出成功"
     )

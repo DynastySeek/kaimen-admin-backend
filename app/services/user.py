@@ -1,6 +1,3 @@
-"""
-用户服务层
-"""
 from typing import Optional, List
 from sqlmodel import Session, select, func, and_
 from fastapi import HTTPException, status, Depends
@@ -20,7 +17,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
 class UserService:
-    """用户服务类"""
 
     @staticmethod
     def get_user_list(
@@ -32,22 +28,6 @@ class UserService:
         phone: Optional[str] = None,
         session: Session = Depends(get_session)
     ) -> dict:
-        """
-        分页获取用户列表
-        
-        Args:
-            page: 页码
-            pageSize: 每页数量
-            user_id: 用户ID
-            name: 用户名
-            nickname: 昵称
-            phone: 手机号
-            session: 数据库会话
-            
-        Returns:
-            dict: 用户列表响应
-        """
-        # 构建查询条件
         filters = []
         
         if user_id:
@@ -59,17 +39,14 @@ class UserService:
         if phone:
             filters.append(User.phone.contains(phone))
         
-        # 如果没有过滤条件，添加一个恒真条件
         if not filters:
             from sqlalchemy import true
             filters.append(true())
         
-        # 查询总数
         total = session.exec(
             select(func.count()).select_from(User).where(and_(*filters))
         ).one()
         
-        # 分页查询
         stmt = (
             select(User)
             .where(and_(*filters))
@@ -79,7 +56,6 @@ class UserService:
         )
         users = session.exec(stmt).all()
         
-        # 转换为响应格式
         user_list = []
         for user in users:
             user_info = UserInfo(
@@ -104,16 +80,6 @@ class UserService:
 
     @staticmethod
     def get_user_by_id(user_id: int, session: Session = Depends(get_session)) -> dict:
-        """
-        根据ID获取用户详情
-        
-        Args:
-            user_id: 用户ID
-            session: 数据库会话
-            
-        Returns:
-            dict: 用户详情响应
-        """
         user = session.exec(select(User).where(User.id == user_id)).first()
         
         if not user:
@@ -138,17 +104,6 @@ class UserService:
 
     @staticmethod
     def create_user(request: UserCreateRequest, session: Session = Depends(get_session)) -> dict:
-        """
-        创建用户（管理员权限）
-        
-        Args:
-            request: 创建用户请求
-            session: 数据库会话
-            
-        Returns:
-            dict: 创建结果响应
-        """
-        # 检查用户名是否已存在
         existing_user = session.exec(select(User).where(User.name == request.name)).first()
         if existing_user:
             raise HTTPException(
@@ -156,7 +111,6 @@ class UserService:
                 detail="用户名已存在"
             )
         
-        # 检查邮箱是否已存在（如果提供了邮箱）
         if request.email:
             existing_email = session.exec(select(User).where(User.email == request.email)).first()
             if existing_email:
@@ -165,11 +119,10 @@ class UserService:
                     detail="邮箱已存在"
                 )
         
-        # 创建新用户
         new_user = User(
             name=request.name,
             email=request.email,
-            password=request.password,  # 注意：实际项目中应该对密码进行哈希处理
+            password=request.password,
             role=request.role or "user",
             nickname=request.nickname,
             phone=request.phone,
@@ -202,18 +155,6 @@ class UserService:
         request: UserUpdateSelfRequest, 
         session: Session = Depends(get_session)
     ) -> dict:
-        """
-        更新当前用户信息
-        
-        Args:
-            current_user: 当前用户
-            request: 更新请求
-            session: 数据库会话
-            
-        Returns:
-            dict: 更新结果响应
-        """
-        # 检查用户名是否已被其他用户使用
         if request.name and request.name != current_user.name:
             existing_user = session.exec(
                 select(User).where(User.name == request.name, User.id != current_user.id)
@@ -224,7 +165,6 @@ class UserService:
                     detail="用户名已存在"
                 )
         
-        # 检查邮箱是否已被其他用户使用
         if request.email and request.email != current_user.email:
             existing_email = session.exec(
                 select(User).where(User.email == request.email, User.id != current_user.id)
@@ -235,13 +175,12 @@ class UserService:
                     detail="邮箱已存在"
                 )
         
-        # 更新用户信息
         if request.name is not None:
             current_user.name = request.name
         if request.nickname is not None:
             current_user.nickname = request.nickname
         if request.password is not None:
-            current_user.password = request.password  # 注意：实际项目中应该对密码进行哈希处理
+            current_user.password = request.password
         if request.email is not None:
             current_user.email = request.email
         if request.phone is not None:
@@ -275,17 +214,6 @@ class UserService:
         request: UserUpdateAdminRequest, 
         session: Session = Depends(get_session)
     ) -> dict:
-        """
-        根据ID更新用户信息（管理员权限）
-        
-        Args:
-            user_id: 用户ID
-            request: 更新请求
-            session: 数据库会话
-            
-        Returns:
-            dict: 更新结果响应
-        """
         user = session.exec(select(User).where(User.id == user_id)).first()
         
         if not user:
@@ -294,7 +222,6 @@ class UserService:
                 detail="用户不存在"
             )
         
-        # 检查用户名是否已被其他用户使用
         if request.name and request.name != user.name:
             existing_user = session.exec(
                 select(User).where(User.name == request.name, User.id != user_id)
@@ -305,7 +232,6 @@ class UserService:
                     detail="用户名已存在"
                 )
         
-        # 检查邮箱是否已被其他用户使用
         if request.email and request.email != user.email:
             existing_email = session.exec(
                 select(User).where(User.email == request.email, User.id != user_id)
@@ -316,13 +242,12 @@ class UserService:
                     detail="邮箱已存在"
                 )
         
-        # 更新用户信息
         if request.name is not None:
             user.name = request.name
         if request.email is not None:
             user.email = request.email
         if request.password is not None:
-            user.password = request.password  # 注意：实际项目中应该对密码进行哈希处理
+            user.password = request.password
         if request.role is not None:
             user.role = request.role
         if request.nickname is not None:
@@ -354,15 +279,6 @@ class UserService:
 
 
 def get_user_by_id(user_id: int) -> Optional[User]:
-    """
-    根据用户ID获取用户（兼容现有代码）
-    
-    Args:
-        user_id: 用户ID
-        
-    Returns:
-        Optional[User]: 用户对象或None
-    """
     from app.utils.db import engine
     with Session(engine) as session:
         statement = select(User).where(User.id == user_id)
