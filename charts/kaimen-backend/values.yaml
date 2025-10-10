@@ -1,31 +1,24 @@
 replicaCount: 1
-
 image:
   repository: ccr.ccs.tencentyun.com/<namespace>/kaimen-backend
-  tag: "latest"
+  tag: "main-affe8bc"
   pullPolicy: IfNotPresent
-
 serviceAccount:
   create: true
   name: ""
-
 service:
   type: ClusterIP
   port: 8000
-
 env:
   - name: ENV
     value: "production"
   - name: LOG_LEVEL
     value: "info"
-
 config:
   APP_NAME: "kaimen-backend"
   APP_MODE: "release"
-
 secrets:
   DATABASE_URL: "mysql://user:password@mysql:3306/kaimen"
-
 resources:
   limits:
     cpu: 500m
@@ -33,7 +26,6 @@ resources:
   requests:
     cpu: 100m
     memory: 128Mi
-
 nodeSelector: {}
 tolerations: []
 affinity: {}
