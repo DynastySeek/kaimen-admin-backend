@@ -1,0 +1,210 @@
+# ArgoCD 安装配置
+# 在TKE集群中安装ArgoCD
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+  labels:
+    name: argocd
+    app.kubernetes.io/name: argocd
+    
+---
+# ArgoCD配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # ArgoCD服务器配置
+  url: https://argocd.kaimen.com
+  
+  # Git仓库配置
+  repositories: |
+    - type: git
+      url: https://github.com/DynastySeek/kaimen-admin-backend.git
+      name: kaimen-admin-backend
+      
+  # OIDC配置（可选）
+  oidc.config: |
+    name: GitHub
+    issuer: https://github.com
+    clientId: $oidc.github.clientId
+    clientSecret: $oidc.github.clientSecret
+    requestedScopes: ["user:email"]
+    requestedIDTokenClaims: {"groups": {"essential": true}}
+    
+  # 应用实例标签Key
+  application.instanceLabelKey: argocd.argoproj.io/instance
+  
+  # 服务器配置
+  server.insecure: "false"
+  server.grpc.web: "true"
+  
+  # 状态检查超时
+  timeout.reconciliation: 180s
+  timeout.hard.reconciliation: 0s
+  
+---
+# ArgoCD命令行参数配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cmd-params-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # 服务器配置
+  server.insecure: "false"
+  server.basehref: "/"
+  server.grpc.web: "true"
+  
+  # 控制器配置
+  controller.status.processors: "20"
+  controller.operation.processors: "10"
+  controller.self.heal.timeout.seconds: "5"
+  
+  # 仓库服务器配置
+  reposerver.parallelism.limit: "50"
+  
+---
+# ArgoCD RBAC配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # 默认策略
+  policy.default: role:readonly
+  
+  # 策略规则
+  policy.csv: |
+    # 管理员权限
+    p, role:admin, applications, *, */*, allow
+    p, role:admin, clusters, *, *, allow
+    p, role:admin, repositories, *, *, allow
+    
+    # 开发者权限
+    p, role:developer, applications, get, */*, allow
+    p, role:developer, applications, sync, */*, allow
+    p, role:developer, applications, action/*, */*, allow
+    p, role:developer, repositories, get, *, allow
+    
+    # 只读权限
+    p, role:readonly, applications, get, */*, allow
+    p, role:readonly, repositories, get, *, allow
+    p, role:readonly, clusters, get, *, allow
+    
+    # 组映射
+    g, kaimen:admin, role:admin
+    g, kaimen:developer, role:developer
+    
+  # 管理员用户
+  policy.matchMode: "glob"
+  
+---
+# ArgoCD服务账户
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argocd-server
+  namespace: argocd
+  labels:
+    app.kubernetes.io/component: server
+    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/part-of: argocd
+    
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argocd-application-controller
+  namespace: argocd
+  labels:
+    app.kubernetes.io/component: application-controller
+    app.kubernetes.io/name: argocd-application-controller
+    app.kubernetes.io/part-of: argocd
+    
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argocd-dex-server
+  namespace: argocd
+  labels:
+    app.kubernetes.io/component: dex-server
+    app.kubernetes.io/name: argocd-dex-server
+    app.kubernetes.io/part-of: argocd
+    
+---
+# ArgoCD服务
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-server
+  namespace: argocd
+  labels:
+    app.kubernetes.io/component: server
+    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/part-of: argocd
+spec:
+  type: LoadBalancer
+  ports:
+  - name: https
+    port: 443
+    targetPort: 8080
+    protocol: TCP
+  - name: grpc
+    port: 443
+    targetPort: 8080
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: argocd-server
+    
+---
+# ArgoCD Ingress（腾讯云CLB）
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server-ingress
+  namespace: argocd
+  annotations:
+    kubernetes.io/ingress.class: "qcloud"
+    # 腾讯云CLB注解
+    service.cloud.tencent.com/loadbalance-id: "lb-xxxxxxxx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+    # ArgoCD特殊配置
+    nginx.ingress.kubernetes.io/server-snippet: |
+      grpc_read_timeout 300;
+      grpc_send_timeout 300;
+      client_body_timeout 60;
+      client_header_timeout 60;
+      client_max_body_size 1m;
+spec:
+  tls:
+  - hosts:
+    - argocd.kaimen.com
+    secretName: argocd-tls
+  rules:
+  - host: argocd.kaimen.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              number: 443
