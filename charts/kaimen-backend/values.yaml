@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: ccr.ccs.tencentyun.com/<namespace>/kaimen-backend
-  tag: "main-86928c2"
+  tag: "main-44c6eda"
   pullPolicy: IfNotPresent
 serviceAccount:
   create: true
