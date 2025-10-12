@@ -20,8 +20,9 @@ secrets:
   MYSQL_PORT: "dummy"
   MYSQL_DB: "dummy"
 imagepullSecrets:
-  TCR_PASSWORD: "dummy"
-  TCR_USERNAME: "dummy"
+  username: "dummy"
+  password: "dummy"
+  registry: "kaimen-hk.tencentcloudcr.com"
 resources:
   limits:
     cpu: 500m
