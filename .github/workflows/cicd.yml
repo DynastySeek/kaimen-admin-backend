@@ -72,7 +72,7 @@ jobs:
     name: Deploy to TKE
     needs: build-and-push
     if: ${{ success() }}
-    runs-on: ["self-hosted", "SH"]
+    runs-on: ["self-hosted", "HK"]
     
     steps:
       - name: Checkout code
