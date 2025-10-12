@@ -67,3 +67,38 @@ jobs:
           git add charts/kaimen-backend/values.yaml
           git commit -m "Update kaimen-backend image tag to ${IMAGE_TAG##*:} [skip ci]" || echo "No changes to commit"
           git push origin main
+          
+  deploy-to-tke:
+    name: Deploy to TKE
+    needs: build-and-push
+    if: ${{ success() }}
+    runs-on: self-hosted  
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.14.0'
+
+      - name: Configure KUBECONFIG from secret
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Verify kubectl connection
+        run: kubectl cluster-info
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install kaimen-admin-backend ./charts/kaimen-backend \
+            --set secrets.MYSQL_USER=${{ secrets.MYSQL_USER }} \
+            --set secrets.MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }} \
+            --set secrets.MYSQL_HOST=${{ secrets.MYSQL_HOST }} \
+            --set secrets.MYSQL_PORT=${{ secrets.MYSQL_PORT }} \
+            --set secrets.MYSQL_DB=${{ secrets.MYSQL_DB }} \
+            --set config.SECRET_KEY=${{ secrets.SECRET_KEY }} \
+            --wait
