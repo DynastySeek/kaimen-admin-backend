@@ -107,5 +107,4 @@ jobs:
             --set secrets.MYSQL_DB=${{ secrets.MYSQL_DB }} \
             --set imagepullSecrets.TCR_USERNAME=${{ secrets.TCR_USERNAME }} \
             --set imagepullSecrets.TCR_PASSWORD=${{ secrets.TCR_PASSWORD }} \
-            --set config.SECRET_KEY=${{ secrets.SECRET_KEY }} \
-            --wait
+            --set config.SECRET_KEY=${{ secrets.SECRET_KEY }}

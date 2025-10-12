@@ -28,3 +28,5 @@ spec:
                 name: {{ include "kaimen-backend.name" . }}-config
             - secretRef:
                 name: {{ include "kaimen-backend.name" . }}-secret
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
