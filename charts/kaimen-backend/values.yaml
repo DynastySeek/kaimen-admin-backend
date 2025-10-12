@@ -19,6 +19,9 @@ secrets:
   MYSQL_HOST: "dummy"
   MYSQL_PORT: "dummy"
   MYSQL_DB: "dummy"
+imagepullSecrets:
+  TCR_PASSWORD: "dummy"
+  TCR_USERNAME: "dummy"
 resources:
   limits:
     cpu: 500m
