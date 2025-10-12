@@ -85,8 +85,13 @@ jobs:
 
       - name: Configure KUBECONFIG from secret
         run: |
+          # 写入临时文件
+          echo "${{ secrets.KUBECONFIG }}" > /tmp/kubeconfig
+          # 强制将 user 和 name 转为字符串
+          yq e '(.contexts[].context.user) |= tostring | (.users[].name) |= tostring' -i /tmp/kubeconfig
+          # 安装到标准位置
           mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+          mv /tmp/kubeconfig $HOME/.kube/config
           chmod 600 $HOME/.kube/config
 
       - name: Verify kubectl connection
