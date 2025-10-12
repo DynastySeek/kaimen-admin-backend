@@ -106,6 +106,6 @@ jobs:
             --set secrets.MYSQL_HOST=${{ secrets.MYSQL_HOST }} \
             --set secrets.MYSQL_PORT=${{ secrets.MYSQL_PORT }} \
             --set secrets.MYSQL_DB=${{ secrets.MYSQL_DB }} \
-            --set imagePullSecrets.username=${{ secrets.TCR_USERNAME }} \
-            --set imagePullSecrets.password=${{ secrets.TCR_PASSWORD }} \
+            --set-string imagePullSecrets.username=${{ secrets.TCR_USERNAME }} \
+            --set-string imagePullSecrets.password=${{ secrets.TCR_PASSWORD }} \
             --set config.SECRET_KEY=${{ secrets.SECRET_KEY }}
