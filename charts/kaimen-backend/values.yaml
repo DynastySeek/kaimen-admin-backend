@@ -1,6 +1,6 @@
 replicaCount: 1
 image:
-  repository: ccr.ccs.tencentyun.com/<namespace>/kaimen-backend
+  repository: kaimen.tencentcloudcr.com/management.platform.backend/kaimen-admin-backend
   tag: "main-44c6eda"
   pullPolicy: IfNotPresent
 serviceAccount:
@@ -9,16 +9,16 @@ serviceAccount:
 service:
   type: ClusterIP
   port: 8000
-env:
-  - name: ENV
-    value: "production"
-  - name: LOG_LEVEL
-    value: "info"
 config:
-  APP_NAME: "kaimen-backend"
-  APP_MODE: "release"
+  SECRET_KEY: "dummy"
+  ALGORITHM: "HS256"
+  ACCESS_TOKEN_EXPIRE_SECONDS: 86400
 secrets:
-  DATABASE_URL: "mysql://user:password@mysql:3306/kaimen"
+  MYSQL_USER: "dummy"
+  MYSQL_PASSWORD: "dummy"
+  MYSQL_HOST: "dummy"
+  MYSQL_PORT: "dummy"
+  MYSQL_DB: "dummy"
 resources:
   limits:
     cpu: 500m
