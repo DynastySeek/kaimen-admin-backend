@@ -19,7 +19,7 @@ secrets:
   MYSQL_HOST: "dummy"
   MYSQL_PORT: "dummy"
   MYSQL_DB: "dummy"
-imagepullSecrets:
+imagePullSecrets:
   username: "dummy"
   password: "dummy"
   registry: "kaimen-hk.tencentcloudcr.com"
