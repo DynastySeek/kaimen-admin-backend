@@ -8,6 +8,7 @@ env:
   REGISTRY: kaimen.tencentcloudcr.com
   IMAGE_NAME: management.platform.backend/kaimen-admin-backend
 
+
 jobs:
   build-and-push:
     runs-on: self-hosted
