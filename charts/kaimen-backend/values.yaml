@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: kaimen.tencentcloudcr.com/management.platform.backend/kaimen-admin-backend
-  tag: "main-e40100d"
+  tag: "main-b33e02e"
   pullPolicy: IfNotPresent
 serviceAccount:
   create: true
