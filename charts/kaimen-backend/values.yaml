@@ -1,6 +1,6 @@
 replicaCount: 1
 image:
-  repository: kaimen.tencentcloudcr.com/management.platform.backend/kaimen-admin-backend
+  repository: kaimen-hk.tencentcloudcr.com/management.platform.backend/kaimen-admin-backend
   tag: "main-c05542f"
   pullPolicy: IfNotPresent
 serviceAccount:

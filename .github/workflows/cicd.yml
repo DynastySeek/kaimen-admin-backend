@@ -5,7 +5,7 @@ on:
     branches: [ main ]
 
 env:
-  REGISTRY: kaimen.tencentcloudcr.com
+  REGISTRY: kaimen-hk.tencentcloudcr.com
   IMAGE_NAME: management.platform.backend/kaimen-admin-backend
 
 
