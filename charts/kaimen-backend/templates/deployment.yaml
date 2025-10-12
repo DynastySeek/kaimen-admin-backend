@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "kaimen-backend.fullname" . }}
+  name: {{ include "kaimen-backend.name" . }}
   labels:
     {{- include "kaimen-backend.labels" . | nindent 4 }}
 spec:
@@ -14,27 +14,15 @@ spec:
       labels:
         app: {{ include "kaimen-backend.name" . }}
     spec:
-      serviceAccountName: {{ include "kaimen-backend.fullname" . }}-sa
+      serviceAccountName: {{ include "kaimen-backend.name" . }}-sa
       containers:
         - name: {{ include "kaimen-backend.name" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - containerPort: {{ .Values.service.port }}
-          env:
-            {{- range .Values.env }}
-            - name: {{ .name }}
-              value: "{{ .value }}"
-            {{- end }}
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "kaimen-backend.fullname" . }}-secret
-                  key: DATABASE_URL
-          volumeMounts:
-            - name: config
-              mountPath: /app/config
-      volumes:
-        - name: config
-          configMap:
-            name: {{ include "kaimen-backend.fullname" . }}-config
+          envFrom:
+            - configMapRef:
+                name: {{ include "kaimen-backend.name" . }}-config
+            - secretRef:
+                name: {{ include "kaimen-backend.name" . }}-secret
