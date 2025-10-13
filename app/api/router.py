@@ -9,7 +9,7 @@ from app.api.endpoints import auth, user, appraisal, health
 api_router = APIRouter()
 
 # 注册健康检查路由
-api_router.include_router(health.router, prefix="/api", tags=["健康检查"])
+api_router.include_router(health.router, tags=["健康检查"])
 
 # 注册认证相关路由
 api_router.include_router(auth.router, prefix="/auth", tags=["认证"])
