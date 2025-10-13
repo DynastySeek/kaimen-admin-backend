@@ -154,11 +154,11 @@ jobs:
           # 注意：这里直接使用 commit SHA 作为 tag（与构建时一致）
           helm upgrade --install kaimen-admin-backend ./charts/kaimen-backend \
             --namespace kaimen-admin --create-namespace \
-            --set-string secrets.MYSQL_USER=${{ secrets.MYSQL_USER }} \
-            --set-string secrets.MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }} \
-            --set-string secrets.MYSQL_HOST=${{ secrets.MYSQL_HOST }} \
+            --set-string secrets.MYSQL_USER='${{ secrets.MYSQL_USER }}' \
+            --set-string secrets.MYSQL_PASSWORD='${{ secrets.MYSQL_PASSWORD }}' \
+            --set-string secrets.MYSQL_HOST='${{ secrets.MYSQL_HOST }}' \
             --set secrets.MYSQL_PORT=${{ secrets.MYSQL_PORT }} \
-            --set-string secrets.MYSQL_DB=${{ secrets.MYSQL_DB }} \
+            --set-string secrets.MYSQL_DB='${{ secrets.MYSQL_DB }}' \
             --set-string imagePullSecrets.username=${{ secrets.TCR_USERNAME }} \
             --set-string imagePullSecrets.password=${{ secrets.TCR_PASSWORD }} \
             --set config.SECRET_KEY=${{ secrets.SECRET_KEY }}
