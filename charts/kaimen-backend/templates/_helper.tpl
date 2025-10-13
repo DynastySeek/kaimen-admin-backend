@@ -16,7 +16,7 @@ Create a fullname using the release name and the chart name.
 Common labels
 */}}
 {{- define "kaimen-backend.labels" -}}
-app.kubernetes.io/name: {{ include "kaimen-backend.name" . }}
+app.kubernetes.io/name: {{ .Release.Name }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/version: {{ .Chart.AppVersion }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
