@@ -15,6 +15,7 @@ jobs:
     permissions:
       contents: write
       packages: write
+      pull-requests: write
 
     steps:
       - name: Checkout code
@@ -58,13 +59,34 @@ jobs:
           echo "Updating charts/kaimen-backend/values.yaml with image tag $IMAGE_TAG"
           yq e ".image.tag = \"${IMAGE_TAG##*:}\"" -i charts/kaimen-backend/values.yaml
 
-      - name: Commit updated values.yaml (skip CI)
+      - name: Create Pull Request to update image tag
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update kaimen-backend image tag to ${{ env.IMAGE_TAG }} [skip ci]"
+          branch: ci/update-image-tag-${{ github.run_number }}
+          title: "chore: Auto-update kaimen-backend image tag"
+          body: |
+            This PR updates the Helm chart image tag to the latest build.
+            - Image: `${{ env.IMAGE_TAG }}`
+            - CI run: #${{ github.run_number }}
+            - [skip ci]
+          base: develop
+          labels: automated, skip-ci
+          delete-branch: true
+          author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+      
+      - name: Auto-merge the PR (if created)
+        if: steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated'
+        env:
+          PR_URL: ${{ steps.cpr.outputs.pull-request-url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add charts/kaimen-backend/values.yaml
-          git commit -m "Update kaimen-backend image tag to ${IMAGE_TAG##*:} [skip ci]" || echo "No changes to commit"
-          git push origin develop
+          # Enable auto-merge via GitHub CLI
+          gh pr merge --auto --merge "$PR_URL"
+      
+
 
   deploy-to-develop:
     name: Deploy to Dev Environment
