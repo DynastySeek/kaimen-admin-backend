@@ -9,7 +9,7 @@ spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ include "kaimen-backend.name" . }}
+      app: {{ .Release.Name }}
   template:
     metadata:
       labels:
