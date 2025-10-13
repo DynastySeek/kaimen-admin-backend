@@ -3,6 +3,7 @@
 """
 import os
 from typing import Dict, Optional
+from datetime import datetime, timezone, timedelta
 
 # 环境配置
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")  # development, testing, production
@@ -58,6 +59,11 @@ def print_runtime_env_config() -> None:
     """
     启动时打印环境变量配置（不做掩码）。
     """
+    # 计算北京时间启动时间
+    startup_dt = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=8)))
+    startup_time_str = startup_dt.strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[Startup] 启动时间（北京时间）：{startup_time_str}")
+
     cfg = get_runtime_env_config()
     print("[Startup] 环境变量配置：")
     for k, v in cfg.items():
