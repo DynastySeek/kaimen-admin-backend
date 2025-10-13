@@ -9,11 +9,11 @@ spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ include "kaimen-backend.name" . }}
+      app: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: {{ include "kaimen-backend.name" . }}
+        app: {{ .Release.Name }}
     spec:
       serviceAccountName: {{ include "kaimen-backend.name" . }}-sa
       imagePullSecrets:
