@@ -1,21 +1,21 @@
-name: PR Source Branch Check
+# name: PR Source Branch Check
 
-on:
-  pull_request_target:
-    branches: [ main ]
+# on:
+#   pull_request_target:
+#     branches: [ main ]
 
-jobs:
-  check-source-branch:
-    runs-on: ["self-hosted", "HK"]
-    if: github.event.pull_request.head.repo.full_name == github.repository
-    steps:
-      - name: Check if PR comes from 'develop'
-        run: |
-          SOURCE_BRANCH="${{ github.event.pull_request.head.ref }}"
-          if [ "$SOURCE_BRANCH" != "develop" ]; then
-            echo "❌ 错误：只允许从 'develop' 分支向 'main' 合并！"
-            echo "当前 PR 源分支: $SOURCE_BRANCH"
-            exit 1
-          else
-            echo "✅ 源分支是 'develop'，允许合并。"
-          fi
+# jobs:
+#   check-source-branch:
+#     runs-on: ["self-hosted", "HK"]
+#     if: github.event.pull_request.head.repo.full_name == github.repository
+#     steps:
+#       - name: Check if PR comes from 'develop'
+#         run: |
+#           SOURCE_BRANCH="${{ github.event.pull_request.head.ref }}"
+#           if [ "$SOURCE_BRANCH" != "develop" ]; then
+#             echo "❌ 错误：只允许从 'develop' 分支向 'main' 合并！"
+#             echo "当前 PR 源分支: $SOURCE_BRANCH"
+#             exit 1
+#           else
+#             echo "✅ 源分支是 'develop'，允许合并。"
+#           fi
