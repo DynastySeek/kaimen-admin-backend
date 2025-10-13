@@ -1,7 +1,7 @@
 replicaCount: 1
 image:
   repository: kaimen-hk.tencentcloudcr.com/management.platform.backend/kaimen-admin-backend
-  tag: "develop-4a4c024"
+  tag: "develop-6d699ce"
   pullPolicy: IfNotPresent
 serviceAccount:
   create: true
