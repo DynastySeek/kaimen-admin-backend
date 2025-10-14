@@ -115,7 +115,8 @@ jobs:
             --set-string secrets.MYSQL_DB=${{ secrets.MYSQL_DB }} \
             --set-string imagePullSecrets.username=${{ secrets.TCR_USERNAME }} \
             --set-string imagePullSecrets.password=${{ secrets.TCR_PASSWORD }} \
-            --set config.SECRET_KEY=${{ secrets.SECRET_KEY }}
+            --set config.SECRET_KEY=${{ secrets.SECRET_KEY }} \
+            --set-string config.ENVIRONMENT=development
             
   deploy-to-prod:
     name: Deploy to Prod Environment
@@ -161,4 +162,5 @@ jobs:
             --set-string secrets.MYSQL_DB='${{ secrets.MYSQL_DB }}' \
             --set-string imagePullSecrets.username=${{ secrets.TCR_USERNAME }} \
             --set-string imagePullSecrets.password=${{ secrets.TCR_PASSWORD }} \
-            --set config.SECRET_KEY=${{ secrets.SECRET_KEY }}
+            --set config.SECRET_KEY=${{ secrets.SECRET_KEY }} \
+            --set-string config.ENVIRONMENT=production
