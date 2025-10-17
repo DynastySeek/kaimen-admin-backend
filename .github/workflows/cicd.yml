@@ -52,12 +52,14 @@ jobs:
       - name: Extract primary image tag
         # docker/metadata-action 输出多个 tag，取第一个（带分支前缀的 SHA）
         run: |
-          TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+          TAG=$(echo "${{ steps.meta.outputs.tags }}" | tail -n1)
           echo "IMAGE_TAG=$TAG" >> $GITHUB_ENV
           echo "Built and pushed image: $TAG"
 
       - name: Save image tag to file
-        run: echo "${{ env.IMAGE_TAG }}" > .image-tag
+        run: |
+          echo "${{ env.IMAGE_TAG }}" | sed 's/.*://' > .image-tag
+          ls -la .image-tag
       
       - name: Upload image tag as artifact
         uses: actions/upload-artifact@v4
