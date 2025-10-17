@@ -3,7 +3,6 @@ name: Build and Deploy
 on:
   push:
     branches: [ main, develop ]
-    
 
 env:
   REGISTRY: kaimen-hk.tencentcloudcr.com
@@ -11,18 +10,16 @@ env:
 
 jobs:
   build-and-push:
-    if: ${{ github.ref == 'refs/heads/develop' }}
+    # 所有分支都构建
     runs-on: ["self-hosted", "HK"]
     permissions:
-      contents: write
+      contents: read
       packages: write
-      pull-requests: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: develop
+        # 自动检出当前分支（main 或 develop）
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -40,8 +37,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=sha
-            type=raw,value=latest
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/develop' }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -52,47 +49,18 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Set IMAGE_TAG environment variable
+      - name: Extract primary tag
         run: |
-          TAG=$(echo "${{ steps.meta.outputs.tags }}" | tail -n1)
+          FULL_IMAGE=$(echo "${{ steps.meta.outputs.tags }}" | tail -n1)
+          TAG="${FULL_IMAGE##*:}"
           echo "IMAGE_TAG=$TAG" >> $GITHUB_ENV
-
-      - name: Update Helm values.yaml with commit tag
-        run: |
-          echo "Updating charts/kaimen-backend/values.yaml with image tag $IMAGE_TAG"
-          yq e ".image.tag = \"${IMAGE_TAG##*:}\"" -i charts/kaimen-backend/values.yaml
-
-      - name: Commit updated values.yaml (skip CI)
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add charts/kaimen-backend/values.yaml
-          git commit -m "Update kaimen-backend image tag to ${IMAGE_TAG##*:} [skip ci]" || echo "No changes to commit"
-          git push origin develop
-          
-
-  deploy-to-develop:
-    name: Deploy to Dev Environment
-    if: ${{ github.ref == 'refs/heads/develop' }}
-    needs: build-and-push
-    runs-on: ["self-hosted", "HK"]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: develop
-
-      - name: Determine image tag from current commit
-        run: |
-          # 镜像 tag 就是当前 commit SHA（与 develop 构建时一致）
-          echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
-
+          echo "Primary tag: $TAG"
+      
       - name: Set up Helm
         uses: azure/setup-helm@v4
         with:
           version: 'v3.14.0'
-
+      
       - name: Configure KUBECONFIG from secret
         run: |
           echo "${{ secrets.KUBECONFIG }}" > /tmp/kubeconfig
@@ -100,14 +68,16 @@ jobs:
           mkdir -p $HOME/.kube
           mv /tmp/kubeconfig $HOME/.kube/config
           chmod 600 $HOME/.kube/config
-
+    
       - name: Verify kubectl connection
         run: kubectl cluster-info
-
-      - name: Deploy with Helm
+      
+      - name: Deploy to Dev Environment
+        if: ${{ github.ref == 'refs/heads/develop' }}
         run: |
           helm upgrade --install kaimen-admin-backend-dev ./charts/kaimen-backend \
             --namespace kaimen-admin-dev --create-namespace \
+            --set image.tag=${{ env.IMAGE_TAG }} \
             --set-string secrets.MYSQL_USER=${{ secrets.MYSQL_USER }} \
             --set-string secrets.MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }} \
             --set-string secrets.MYSQL_HOST=${{ secrets.MYSQL_HOST }} \
@@ -117,44 +87,13 @@ jobs:
             --set-string imagePullSecrets.password=${{ secrets.TCR_PASSWORD }} \
             --set config.SECRET_KEY=${{ secrets.SECRET_KEY }} \
             --set-string config.ENVIRONMENT=development
-            
-  deploy-to-prod:
-    name: Deploy to Prod Environment
-    if: ${{ github.ref == 'refs/heads/main' }}
-    runs-on: ["self-hosted", "HK"]
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: main
-
-      - name: Determine image tag from current commit
+      - name: Deploy to Prod Environment
+        if: ${{ github.ref == 'refs/heads/main' }}
         run: |
-          # 镜像 tag 就是当前 commit SHA（与 main 构建时一致）
-          echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
-
-      - name: Set up Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: 'v3.14.0'
-
-      - name: Configure KUBECONFIG from secret
-        run: |
-          echo "${{ secrets.KUBECONFIG }}" > /tmp/kubeconfig
-          yq e '(.contexts[].context.user) |= tostring | (.users[].name) |= tostring' -i /tmp/kubeconfig
-          mkdir -p $HOME/.kube
-          mv /tmp/kubeconfig $HOME/.kube/config
-          chmod 600 $HOME/.kube/config
-
-      - name: Verify kubectl connection
-        run: kubectl cluster-info
-
-      - name: Deploy with Helm
-        run: |
-          # 注意：这里直接使用 commit SHA 作为 tag（与构建时一致）
           helm upgrade --install kaimen-admin-backend ./charts/kaimen-backend \
             --namespace kaimen-admin --create-namespace \
+            --set image.tag=${{ env.IMAGE_TAG }} \
             --set-string secrets.MYSQL_USER='${{ secrets.MYSQL_USER }}' \
             --set-string secrets.MYSQL_PASSWORD='${{ secrets.MYSQL_PASSWORD }}' \
             --set-string secrets.MYSQL_HOST='${{ secrets.MYSQL_HOST }}' \
