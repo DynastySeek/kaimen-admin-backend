@@ -11,3 +11,6 @@ pymysql==1.1.0
 
 # JWT认证
 python-jose[cryptography]==3.3.0
+
+# 环境变量管理
+python-dotenv==1.0.0

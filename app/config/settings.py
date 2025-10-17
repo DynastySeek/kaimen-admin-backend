@@ -15,7 +15,7 @@ def get_table_suffix(base_table_name: str) -> str:
     """
     if ENVIRONMENT in ["development", "testing"]:
         # 根据实际数据库中的表名格式设置后缀
-        if base_table_name in ["user", "appraisal_result"]:
+        if base_table_name in ["user", "appraisal_result", "appraisal_buy", "appraisal_consignment"]:
             return "_preview"
         else:
             return "-preview"
