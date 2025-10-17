@@ -36,6 +36,12 @@ MYSQL_DB = os.getenv("MYSQL_DB")
 
 DATABASE_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}"
 
+# 腾讯云 COS 配置
+COS_SECRET_ID = os.getenv("COS_SECRET_ID")
+COS_SECRET_KEY = os.getenv("COS_SECRET_KEY")
+COS_REGION = os.getenv("COS_REGION")
+COS_BUCKET = os.getenv("COS_BUCKET")
+
 
 def get_runtime_env_config() -> Dict[str, str]:
     """
@@ -52,6 +58,10 @@ def get_runtime_env_config() -> Dict[str, str]:
         "MYSQL_PORT": MYSQL_PORT or "",
         "MYSQL_DB": MYSQL_DB or "",
         "DATABASE_URL": DATABASE_URL,
+        "COS_SECRET_ID": COS_SECRET_ID or "",
+        "COS_SECRET_KEY": COS_SECRET_KEY or "",
+        "COS_REGION": COS_REGION or "",
+        "COS_BUCKET": COS_BUCKET or "",
     }
 
 
