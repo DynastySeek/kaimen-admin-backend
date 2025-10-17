@@ -3,13 +3,37 @@ from sqlmodel import Session
 from typing import Optional
 
 from app.services.article import ArticleService
-from app.schemas.article import ArticleListData, ArticleDetail, ArticleUpdate
+from app.schemas.article import ArticleListData, ArticleDetail, ArticleUpdate, ArticleCreate
 from app.utils.db import get_session
 from app.utils.response import success_response
 from app.core.dependencies import get_current_user_required
 from app.models.user import User
 
 router = APIRouter()
+
+
+@router.post("/create", summary="创建文章")
+def create_article(
+    article_data: ArticleCreate,
+    current_user: User = Depends(get_current_user_required),
+    session: Session = Depends(get_session)
+):
+    """创建新文章"""
+    try:
+        article_id = ArticleService.create_article(
+            article_data=article_data,
+            current_user=current_user,
+            session=session
+        )
+        return success_response(
+            data={"id": article_id},
+            message="文章创建成功"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"创建文章失败: {str(e)}"
+        )
 
 
 @router.get("/list")
@@ -89,9 +113,9 @@ def enable_article(
     current_user: User = Depends(get_current_user_required),
     session: Session = Depends(get_session)
 ):
-    """启用文章"""
+    """启用文章（设为已发布状态）"""
     try:
-        article_data = ArticleUpdate(pub_status=1)
+        article_data = ArticleUpdate(pub_status="2")  # 2-已发布
         result = ArticleService.update_article(
             article_id=article_id,
             article_data=article_data,
@@ -99,7 +123,7 @@ def enable_article(
             session=session
         )
         return success_response(
-            data={"id": article_id, "pub_status": 1},
+            data={"id": article_id, "pub_status": "2"},
             message="文章启用成功"
         )
     except HTTPException:
@@ -117,9 +141,9 @@ def disable_article(
     current_user: User = Depends(get_current_user_required),
     session: Session = Depends(get_session)
 ):
-    """禁用文章"""
+    """禁用文章（设为已下线状态）"""
     try:
-        article_data = ArticleUpdate(pub_status=0)
+        article_data = ArticleUpdate(pub_status="3")  # 3-已下线
         result = ArticleService.update_article(
             article_id=article_id,
             article_data=article_data,
@@ -127,7 +151,7 @@ def disable_article(
             session=session
         )
         return success_response(
-            data={"id": article_id, "pub_status": 0},
+            data={"id": article_id, "pub_status": "3"},
             message="文章禁用成功"
         )
     except HTTPException:

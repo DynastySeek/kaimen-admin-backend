@@ -37,10 +37,18 @@ class ArticleDetail(BaseModel):
     pub_status: Optional[str] = None
 
 
+class ArticleCreate(BaseModel):
+    """文章创建请求"""
+    title: str = Field(..., description="文章标题")
+    cover_pic: Optional[str] = Field(None, description="封面图片")
+    author: Optional[str] = Field(None, description="作者")
+    rich_content: Optional[str] = Field(None, description="富文本内容")
+
+
 class ArticleUpdate(BaseModel):
     """文章更新请求"""
     title: Optional[str] = Field(None, description="文章标题")
     cover_pic: Optional[str] = Field(None, description="封面图片")
     author: Optional[str] = Field(None, description="作者")
     rich_content: Optional[str] = Field(None, description="富文本内容")
-    pub_status: Optional[int] = Field(None, description="发布状态：0-未发布，1-已发布")
+    pub_status: Optional[str] = Field(None, description="发布状态：1-待发布，2-已发布，3-已下线")

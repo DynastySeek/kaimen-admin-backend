@@ -4,10 +4,35 @@ from datetime import datetime
 import time
 
 from app.models.article import ArticlePreview
-from app.schemas.article import ArticleListData, ArticleDetail, ArticleUpdate
+from app.schemas.article import ArticleListData, ArticleDetail, ArticleUpdate, ArticleCreate
 
 
 class ArticleService:
+    
+    @staticmethod
+    def create_article(article_data: ArticleCreate, current_user, session: Session) -> str:
+        """创建新文章"""
+        current_time = int(time.time())
+        
+        # 创建新文章实例
+        new_article = ArticlePreview(
+            title=article_data.title,
+            cover_pic=article_data.cover_pic,
+            author=article_data.author,
+            rich_content=article_data.rich_content,
+            pub_status="1",  # 默认为待发布状态
+            create_by=current_user.name,
+            update_by=current_user.name,
+            created_at=current_time,
+            updated_at=current_time,
+            is_del="0"
+        )
+        
+        session.add(new_article)
+        session.commit()
+        session.refresh(new_article)
+        
+        return new_article.id
     
     @staticmethod
     def get_article_list(
