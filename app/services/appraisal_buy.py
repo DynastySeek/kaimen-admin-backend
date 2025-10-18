@@ -14,7 +14,12 @@ class AppraisalBuyService:
     def get_appraisal_buy_list(
         page: int,
         pageSize: int,
+        id: Optional[str] = None,
         buyer_type: Optional[str] = None,
+        desc: Optional[str] = None,
+        minPrice: Optional[float] = None,
+        maxPrice: Optional[float] = None,
+        userPhone: Optional[str] = None,
         phone: Optional[str] = None,
         createStartTime: Optional[str] = None,
         createEndTime: Optional[str] = None,
@@ -24,10 +29,26 @@ class AppraisalBuyService:
         
         filters = [AppraisalBuy.is_del == "1"]
         
+        if id:
+            filters.append(AppraisalBuy.id == id)
+        
         if buyer_type:
             filters.append(AppraisalBuy.buyer_type == buyer_type)
+        
+        if desc:
+            filters.append(AppraisalBuy.desc.like(f"%{desc}%"))
+        
+        if minPrice is not None:
+            filters.append(AppraisalBuy.min_price >= minPrice)
+        
+        if maxPrice is not None:
+            filters.append(AppraisalBuy.max_price <= maxPrice)
+        
+        if userPhone:
+            filters.append(AppraisalBuy.phone == userPhone)
+        
         if phone:
-            filters.append(AppraisalBuy.phone.contains(phone))
+            filters.append(AppraisalBuy.phone.like(f"%{phone}%"))
         
         def parse_time(ts: Optional[str]) -> Optional[datetime]:
             if not ts:

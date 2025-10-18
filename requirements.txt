@@ -14,3 +14,9 @@ python-jose[cryptography]==3.3.0
 
 # 环境变量管理
 python-dotenv==1.0.0
+
+# 腾讯云 COS SDK
+cos-python-sdk-v5==1.9.30
+
+# 文件处理
+python-multipart==0.0.6
