@@ -13,7 +13,7 @@ class ArticleService:
     @staticmethod
     def create_article(article_data: ArticleCreate, current_user, session: Session) -> str:
         """创建新文章"""
-        current_time = int(time.time())
+        current_time = int(time.time() * 1000)
         article_id = str(uuid.uuid4()).replace('-', '')
         
         # 创建新文章实例
@@ -133,7 +133,7 @@ class ArticleService:
             setattr(article, field, value)
         
         article.update_by = current_user.name
-        article.updated_at = int(time.time())
+        article.updated_at = int(time.time() * 1000)
         
         session.add(article)
         session.commit()
