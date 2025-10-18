@@ -4,6 +4,24 @@
 import os
 from typing import Dict, Optional
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
+from dotenv import load_dotenv
+
+# 加载 .env 文件
+# 获取项目根目录
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+env_file = BASE_DIR / ".env"
+
+# 如果 .env 文件存在则加载
+if env_file.exists():
+    load_dotenv(env_file)
+else:
+    # 尝试加载其他环境配置文件
+    env = os.getenv("ENVIRONMENT", "development")
+    if env == "production":
+        load_dotenv(BASE_DIR / ".env.prod")
+    elif env == "testing":
+        load_dotenv(BASE_DIR / ".env.test")
 
 # 环境配置
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")  # development, testing, production
@@ -42,6 +60,27 @@ COS_SECRET_KEY = os.getenv("COS_SECRET_KEY")
 COS_REGION = os.getenv("COS_REGION")
 COS_BUCKET = os.getenv("COS_BUCKET")
 
+# Redis 配置
+REDIS_HOST = os.getenv("REDIS_HOST")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+REDIS_USER = os.getenv("REDIS_USER")
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
+REDIS_DB = int(os.getenv("REDIS_DB", 0))
+
+# Redis 连接 URL
+REDIS_URL = f"redis://{REDIS_USER}:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}" if REDIS_USER and REDIS_PASSWORD else f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+
+# 腾讯云短信配置
+TENCENT_CLOUD_SECRET_ID = os.getenv("TENCENT_CLOUD_SECRET_ID")
+TENCENT_CLOUD_SECRET_KEY = os.getenv("TENCENT_CLOUD_SECRET_KEY")
+SMS_SDK_APP_ID = os.getenv("SMS_SDK_APP_ID")
+SMS_REGION = os.getenv("SMS_REGION", "ap-guangzhou")
+SMS_SIGN_NAME = os.getenv("SMS_SIGN_NAME")
+
+# 短信模板ID配置
+SMS_TEMPLATE_STATUS_COMPLETE = "2532457"  # 真/假/驳回（订单已完成）
+SMS_TEMPLATE_DOUBT = "2532458"  # 存疑/待完善
+
 
 def get_runtime_env_config() -> Dict[str, str]:
     """
@@ -62,6 +101,12 @@ def get_runtime_env_config() -> Dict[str, str]:
         "COS_SECRET_KEY": COS_SECRET_KEY or "",
         "COS_REGION": COS_REGION or "",
         "COS_BUCKET": COS_BUCKET or "",
+        "REDIS_HOST": REDIS_HOST or "",
+        "REDIS_PORT": str(REDIS_PORT),
+        "REDIS_USER": REDIS_USER or "",
+        "REDIS_PASSWORD": REDIS_PASSWORD or "",
+        "REDIS_DB": str(REDIS_DB),
+        "REDIS_URL": REDIS_URL,
     }
 
 

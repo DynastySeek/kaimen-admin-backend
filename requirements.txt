@@ -20,3 +20,9 @@ cos-python-sdk-v5==1.9.30
 
 # 文件处理
 python-multipart==0.0.6
+
+# Redis缓存
+redis==5.0.1
+
+# 腾讯云短信SDK
+tencentcloud-sdk-python==3.0.1252
