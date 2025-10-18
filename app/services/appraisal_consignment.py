@@ -14,7 +14,12 @@ class AppraisalConsignmentService:
     def get_appraisal_consignment_list(
         page: int,
         pageSize: int,
+        id: Optional[str] = None,
         type: Optional[str] = None,
+        desc: Optional[str] = None,
+        minExpectedPrice: Optional[float] = None,
+        maxExpectedPrice: Optional[float] = None,
+        userPhone: Optional[str] = None,
         phone: Optional[str] = None,
         createStartTime: Optional[str] = None,
         createEndTime: Optional[str] = None,
@@ -24,8 +29,18 @@ class AppraisalConsignmentService:
         
         filters = [AppraisalConsignment.is_del == "1"]
         
+        if id:
+            filters.append(AppraisalConsignment.id == int(id))
         if type:
-            filters.append(AppraisalConsignment.type == type)
+            filters.append(AppraisalConsignment.type.contains(type))
+        if desc:
+            filters.append(AppraisalConsignment.desc.contains(desc))
+        if minExpectedPrice is not None:
+            filters.append(AppraisalConsignment.expected_price >= minExpectedPrice)
+        if maxExpectedPrice is not None:
+            filters.append(AppraisalConsignment.expected_price <= maxExpectedPrice)
+        if userPhone:
+            filters.append(AppraisalConsignment.phone == userPhone)
         if phone:
             filters.append(AppraisalConsignment.phone.contains(phone))
         

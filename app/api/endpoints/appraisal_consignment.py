@@ -16,17 +16,27 @@ router = APIRouter()
 def get_appraisal_consignment_list(
     page: int = Query(1, ge=1, description="页码"),
     pageSize: int = Query(20, ge=1, le=100, description="每页数量"),
-    type: Optional[str] = Query(None, description="寄卖类型"),
-    phone: Optional[str] = Query(None, description="手机号"),
-    createStartTime: Optional[str] = Query(None, description="创建开始时间"),
-    createEndTime: Optional[str] = Query(None, description="创建结束时间"),
+    id: Optional[str] = Query(None, description="求购ID"),
+    type: Optional[str] = Query(None, description="类目"),
+    desc: Optional[str] = Query(None, description="描述"),
+    minExpectedPrice: Optional[float] = Query(None, description="最低心理价位"),
+    maxExpectedPrice: Optional[float] = Query(None, description="最高心理价位"),
+    userPhone: Optional[str] = Query(None, regex=r'^1[3-9]\d{9}$', description="用户登录授权手机号，必须是11位有效手机号"),
+    phone: Optional[str] = Query(None, description="用户填写联系方式"),
+    createStartTime: Optional[str] = None,
+    createEndTime: Optional[str] = None,
     session: Session = Depends(get_session)
 ):
     try:
         data = AppraisalConsignmentService.get_appraisal_consignment_list(
             page=page,
             pageSize=pageSize,
+            id=id,
             type=type,
+            desc=desc,
+            minExpectedPrice=minExpectedPrice,
+            maxExpectedPrice=maxExpectedPrice,
+            userPhone=userPhone,
             phone=phone,
             createStartTime=createStartTime,
             createEndTime=createEndTime,
