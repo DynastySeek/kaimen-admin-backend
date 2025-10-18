@@ -1,7 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
-from typing import Dict
 
-from app.schemas.upload import ImageUploadResponse
 from app.services.upload import UploadService
 from app.core.dependencies import get_current_user_required
 from app.utils.response import success_response
@@ -10,25 +8,29 @@ from app.models.user import User
 router = APIRouter()
 
 
-@router.post("/image", response_model=ImageUploadResponse)
+@router.post("/image")
 async def upload_image(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user_required)
-) -> ImageUploadResponse:
+):
     upload_service = UploadService()
-    return await upload_service.upload_image(file)
+    result = await upload_service.upload_image(file)
+    return success_response(
+        data=result,
+        message="图片上传成功"
+    )
 
 
 @router.delete("/image")
 async def delete_image(
     file_key: str,
     current_user: User = Depends(get_current_user_required)
-) -> Dict[str, str]:
+):
     upload_service = UploadService()
     success = upload_service.delete_image(file_key)
     
     if success:
-        return {"message": "图片删除成功"}
+        return success_response(message="图片删除成功")
     else:
         raise HTTPException(status_code=500, detail="图片删除失败")
 

@@ -84,7 +84,7 @@ def get_article_detail(
 
 @router.put("/update", summary="更新文章")
 def update_article(
-    article_id: int = Query(..., description="文章ID"),
+    article_id: str = Query(..., description="文章ID"),
     article_data: ArticleUpdate = ...,
     current_user: User = Depends(get_current_user_required),
     session: Session = Depends(get_session)
@@ -109,7 +109,7 @@ def update_article(
 
 @router.put("/enable", summary="启用文章")
 def enable_article(
-    article_id: int = Query(..., description="文章ID"),
+    article_id: str = Query(..., description="文章ID"),
     current_user: User = Depends(get_current_user_required),
     session: Session = Depends(get_session)
 ):
@@ -137,7 +137,7 @@ def enable_article(
 
 @router.put("/disable", summary="禁用文章")
 def disable_article(
-    article_id: int = Query(..., description="文章ID"),
+    article_id: str = Query(..., description="文章ID"),
     current_user: User = Depends(get_current_user_required),
     session: Session = Depends(get_session)
 ):

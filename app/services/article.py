@@ -2,6 +2,7 @@ from sqlmodel import Session, select, func
 from typing import Optional
 from datetime import datetime
 import time
+import uuid
 
 from app.models.article import ArticlePreview
 from app.schemas.article import ArticleListData, ArticleDetail, ArticleUpdate, ArticleCreate
@@ -13,9 +14,11 @@ class ArticleService:
     def create_article(article_data: ArticleCreate, current_user, session: Session) -> str:
         """创建新文章"""
         current_time = int(time.time())
+        article_id = str(uuid.uuid4()).replace('-', '')
         
         # 创建新文章实例
         new_article = ArticlePreview(
+            id=article_id,
             title=article_data.title,
             cover_pic=article_data.cover_pic,
             author=article_data.author,

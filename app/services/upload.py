@@ -8,6 +8,7 @@ from qcloud_cos.cos_exception import CosServiceError, CosClientError
 
 from app.schemas.upload import ImageUploadResponse, UploadConfig
 from app.config.settings import COS_SECRET_ID, COS_SECRET_KEY, COS_REGION, COS_BUCKET
+from app.utils.tool import is_prod
 
 
 class UploadService:
@@ -31,6 +32,12 @@ class UploadService:
         
         client = CosS3Client(config)
         return client
+    
+    def get_env_folder(self) -> str:
+        if is_prod():
+            return "admin"
+        else:
+            return "admin-test"
     
     @staticmethod
     def validate_image_file(file: UploadFile, config: UploadConfig = None) -> bool:
@@ -58,16 +65,20 @@ class UploadService:
         
         return True
     
-    def generate_file_key(self, filename: str, folder: str = "images") -> str:
+    def generate_file_key(self, filename: str, folder: str = None) -> str:
+        if folder is None:
+            folder = self.get_env_folder()
         file_ext = os.path.splitext(filename)[1].lower()
         timestamp = datetime.now().strftime("%Y%m%d")
         unique_id = str(uuid.uuid4()).replace('-', '')
         file_key = f"{folder}/{timestamp}/{unique_id}{file_ext}"
         return file_key
     
-    async def upload_image(self, file: UploadFile, folder: str = "images") -> ImageUploadResponse:
+    async def upload_image(self, file: UploadFile, folder: str = None) -> ImageUploadResponse:
         try:
             self.validate_image_file(file)
+            if folder is None:
+                folder = self.get_env_folder()
             file_key = self.generate_file_key(file.filename, folder)
             file_content = await file.read()
             
@@ -78,7 +89,7 @@ class UploadService:
                 ContentType=file.content_type
             )
             
-            file_url = f"https://{self.bucket}.cos.{self.region}.myqcloud.com/{file_key}"
+            file_url = f"https://app-resource.kaimen.site/{file_key}"
             
             return ImageUploadResponse(
                 url=file_url,
