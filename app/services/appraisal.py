@@ -2,6 +2,7 @@ from sqlmodel import Session, select
 from fastapi import HTTPException, Depends
 from typing import List, Optional
 from datetime import datetime, timezone
+import logging
 
 from app.models.appraisal import Appraisal, AppraisalResource, AppraisalResult, UserInfo
 from app.models.user import User
@@ -13,6 +14,10 @@ from app.schemas.appraisal import (
 from app.utils.db import get_session
 from app.utils.response import success_response
 from app.core.dependencies import get_current_user_required
+from app.services.sms import get_sms_service
+from app.services.appraisal_stats import get_appraisal_stats_service
+
+logger = logging.getLogger(__name__)
 
 
 class AppraisalService:
@@ -187,6 +192,7 @@ class AppraisalService:
         
         success_count = 0
         failed_items = []
+        stats_service = get_appraisal_stats_service()
         
         for item in request:
             try:
@@ -201,6 +207,9 @@ class AppraisalService:
                     ))
                     continue
                 
+                # 记录旧状态用于统计更新
+                old_status = appraisal.appraisal_status
+                
                 if item.appraisal_status is not None:
                     appraisal.appraisal_status = str(item.appraisal_status)
                 if item.appraisal_class is not None:
@@ -208,6 +217,15 @@ class AppraisalService:
                 
                 session.add(appraisal)
                 success_count += 1
+                
+                # 更新统计数据
+                if appraisal.userinfo_id:
+                    stats_service.handle_status_change(
+                        userinfo_id=appraisal.userinfo_id,
+                        appraisal_id=appraisal.id,
+                        old_status=old_status,
+                        new_status=appraisal.appraisal_status
+                    )
                 
             except Exception as e:
                 failed_items.append(FailedItem(
@@ -233,6 +251,10 @@ class AppraisalService:
         success_count = 0
         failed_items = []
         
+        # 获取短信服务实例和统计服务实例
+        sms_service = get_sms_service()
+        stats_service = get_appraisal_stats_service()
+        
         for item in request.items:
             try:
                 appraisal = session.exec(
@@ -245,6 +267,11 @@ class AppraisalService:
                         reason="订单不存在"
                     ))
                     continue
+                
+                # 记录旧的状态和结果，用于变更检测和统计更新
+                old_status = appraisal.appraisal_status
+                old_result = appraisal.appraisal_result
+                new_result = item.appraisalResult
                 
                 # 生成备注内容
                 notes = item.comment or ""
@@ -262,13 +289,63 @@ class AppraisalService:
                 session.add(result)
                 session.flush()  # 获取新插入记录的ID
                 
-                # 更新Appraisal的新字段
+                # 更新Appraisal的字段
                 appraisal.last_appraiser_id = current_user.id
                 appraisal.last_appraisal_result_id = result.id
                 appraisal.appraisal_result = item.appraisalResult
+                appraisal.appraisal_status = "3"  # 添加鉴定结果后自动设置为已完成状态
                 
                 session.add(appraisal)
                 success_count += 1
+                
+                # 更新统计数据
+                if appraisal.userinfo_id:
+                    stats_service.handle_status_change(
+                        userinfo_id=appraisal.userinfo_id,
+                        appraisal_id=appraisal.id,
+                        old_status=old_status,
+                        new_status=appraisal.appraisal_status  # 新状态为"3"
+                    )
+                
+                # 检测鉴定结果是否变更，如果变更则发送短信通知
+                if old_result != new_result:
+                    logger.info(
+                        f"检测到鉴定结果变更: 订单ID={item.appraisalId}, "
+                        f"旧结果={old_result}, 新结果={new_result}"
+                    )
+                    
+                    # 查询用户手机号
+                    user_info = session.exec(
+                        select(UserInfo).where(UserInfo.id == appraisal.userinfo_id)
+                    ).first()
+                    
+                    if user_info and user_info.phone:
+                        # 异步发送短信通知
+                        if sms_service:
+                            try:
+                                sms_service.send_appraisal_notification_async(
+                                    phone=user_info.phone,
+                                    appraisal_result=new_result,
+                                    appraisal_id=item.appraisalId
+                                )
+                                logger.info(
+                                    f"已触发短信发送: 订单ID={item.appraisalId}, "
+                                    f"手机号={user_info.phone}"
+                                )
+                            except Exception as sms_error:
+                                # 短信发送失败不影响主业务流程
+                                logger.error(
+                                    f"短信发送触发失败: 订单ID={item.appraisalId}, "
+                                    f"错误={str(sms_error)}",
+                                    exc_info=True
+                                )
+                        else:
+                            logger.warning("短信服务未初始化，跳过短信发送")
+                    else:
+                        logger.warning(
+                            f"未找到用户手机号，跳过短信发送: "
+                            f"订单ID={item.appraisalId}, userinfo_id={appraisal.userinfo_id}"
+                        )
                 
             except Exception as e:
                 failed_items.append(FailedItem(
