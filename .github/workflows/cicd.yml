@@ -90,7 +90,17 @@ jobs:
             --set-string config.COS_SECRET_ID=${{ secrets.COS_SECRET_ID }} \
             --set-string config.COS_SECRET_KEY=${{ secrets.COS_SECRET_KEY }} \
             --set-string config.COS_REGION=${{ secrets.COS_REGION }} \
-            --set-string config.COS_BUCKET=${{ secrets.COS_BUCKET }}
+            --set-string config.COS_BUCKET=${{ secrets.COS_BUCKET }} \
+            --set-string config.REDIS_HOST=${{ secrets.REDIS_HOST }} \
+            --set secrets.REDIS_PORT=${{ secrets.REDIS_PORT }} \
+            --set-string config.REDIS_USER=${{ secrets.REDIS_USER }} \
+            --set-string config.REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }} \
+            --set secrets.REDIS_DB=${{ secrets.REDIS_DB }} \
+            --set-string config.TENCENT_CLOUD_SECRET_ID=${{ secrets.TENCENT_CLOUD_SECRET_ID }} \
+            --set-string config.TENCENT_CLOUD_SECRET_KEY=${{ secrets.TENCENT_CLOUD_SECRET_KEY }} \
+            --set-string config.SMS_SDK_APP_ID=${{ secrets.SMS_SDK_APP_ID }} \
+            --set-string config.SMS_REGION=${{ secrets.SMS_REGION }} \
+            --set-string config.SMS_SIGN_NAME=${{ secrets.SMS_SIGN_NAME }}
 
       - name: Deploy to Prod Environment
         if: ${{ github.ref == 'refs/heads/main' }}
@@ -110,4 +120,14 @@ jobs:
             --set-string config.COS_SECRET_ID=${{ secrets.COS_SECRET_ID }} \
             --set-string config.COS_SECRET_KEY=${{ secrets.COS_SECRET_KEY }} \
             --set-string config.COS_REGION=${{ secrets.COS_REGION }} \
-            --set-string config.COS_BUCKET=${{ secrets.COS_BUCKET }}
+            --set-string config.COS_BUCKET=${{ secrets.COS_BUCKET }} \
+            --set-string config.REDIS_HOST=${{ secrets.REDIS_HOST }} \
+            --set secrets.REDIS_PORT=${{ secrets.REDIS_PORT }} \
+            --set-string config.REDIS_USER=${{ secrets.REDIS_USER }} \
+            --set-string config.REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }} \
+            --set secrets.REDIS_DB=${{ secrets.REDIS_DB }} \
+            --set-string config.TENCENT_CLOUD_SECRET_ID=${{ secrets.TENCENT_CLOUD_SECRET_ID }} \
+            --set-string config.TENCENT_CLOUD_SECRET_KEY=${{ secrets.TENCENT_CLOUD_SECRET_KEY }} \
+            --set-string config.SMS_SDK_APP_ID=${{ secrets.SMS_SDK_APP_ID }} \
+            --set-string config.SMS_REGION=${{ secrets.SMS_REGION }} \
+            --set-string config.SMS_SIGN_NAME=${{ secrets.SMS_SIGN_NAME }}
