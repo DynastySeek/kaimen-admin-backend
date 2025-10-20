@@ -228,10 +228,10 @@ class AppraisalService:
                         new_status=appraisal.appraisal_status
                     )
 
-                # 检测状态是否变更为"已退回"，如果是则发送短信通知
-                if old_status != appraisal.appraisal_status and appraisal.appraisal_status == "5":
+                # 检测状态变更，如果变更为需要通知的状态则发送短信
+                if old_status != appraisal.appraisal_status and appraisal.appraisal_status in ["3", "4", "5"]:
                     logger.info(
-                        f"检测到状态变更为已退回: 订单ID={item.id}, "
+                        f"检测到状态变更为需要通知的状态: 订单ID={item.id}, "
                         f"旧状态={old_status}, 新状态={appraisal.appraisal_status}"
                     )
                     
@@ -241,29 +241,30 @@ class AppraisalService:
                     ).first()
                     
                     if user_info and user_info.phone:
-                        # 异步发送退回通知短信
+                        # 异步发送状态通知短信
                         if sms_service:
                             try:
-                                sms_service.send_status_rejected_notification_async(
+                                sms_service.send_status_notification_async(
                                     phone=user_info.phone,
+                                    appraisal_status=appraisal.appraisal_status,
                                     appraisal_id=item.id
                                 )
                                 logger.info(
-                                    f"已触发退回通知短信发送: 订单ID={item.id}, "
-                                    f"手机号={user_info.phone}"
+                                    f"已触发状态通知短信发送: 订单ID={item.id}, "
+                                    f"状态={appraisal.appraisal_status}, 手机号={user_info.phone}"
                                 )
                             except Exception as sms_error:
                                 # 短信发送失败不影响主业务流程
                                 logger.error(
-                                    f"退回通知短信发送触发失败: 订单ID={item.id}, "
+                                    f"状态通知短信发送触发失败: 订单ID={item.id}, "
                                     f"错误={str(sms_error)}",
                                     exc_info=True
                                 )
                         else:
-                            logger.warning("短信服务未初始化，跳过退回通知短信发送")
+                            logger.warning("短信服务未初始化，跳过状态通知短信发送")
                     else:
                         logger.warning(
-                            f"未找到用户手机号，跳过退回通知短信发送: "
+                            f"未找到用户手机号，跳过状态通知短信发送: "
                             f"订单ID={item.id}, userinfo_id={appraisal.userinfo_id}"
                         )
                 
@@ -308,10 +309,8 @@ class AppraisalService:
                     ))
                     continue
                 
-                # 记录旧的状态和结果，用于变更检测和统计更新
+                # 记录旧状态用于统计更新
                 old_status = appraisal.appraisal_status
-                old_result = appraisal.appraisal_result
-                new_result = item.appraisalResult
                 
                 # 生成备注内容
                 notes = item.comment or ""
@@ -347,11 +346,11 @@ class AppraisalService:
                         new_status=appraisal.appraisal_status  # 新状态为"3"
                     )
                 
-                # 检测鉴定结果是否变更，如果变更则发送短信通知
-                if old_result != new_result:
+                # 检测状态是否变更为已完结，如果是则发送短信通知
+                if old_status != appraisal.appraisal_status and appraisal.appraisal_status == "3":
                     logger.info(
-                        f"检测到鉴定结果变更: 订单ID={item.appraisalId}, "
-                        f"旧结果={old_result}, 新结果={new_result}"
+                        f"检测到状态变更为已完结: 订单ID={item.appraisalId}, "
+                        f"旧状态={old_status}, 新状态={appraisal.appraisal_status}"
                     )
                     
                     # 查询用户手机号
@@ -360,30 +359,30 @@ class AppraisalService:
                     ).first()
                     
                     if user_info and user_info.phone:
-                        # 异步发送短信通知
+                        # 异步发送状态通知短信
                         if sms_service:
                             try:
-                                sms_service.send_appraisal_notification_async(
+                                sms_service.send_status_notification_async(
                                     phone=user_info.phone,
-                                    appraisal_result=new_result,
+                                    appraisal_status=appraisal.appraisal_status,
                                     appraisal_id=item.appraisalId
                                 )
                                 logger.info(
-                                    f"已触发短信发送: 订单ID={item.appraisalId}, "
-                                    f"手机号={user_info.phone}"
+                                    f"已触发状态通知短信发送: 订单ID={item.appraisalId}, "
+                                    f"状态={appraisal.appraisal_status}, 手机号={user_info.phone}"
                                 )
                             except Exception as sms_error:
                                 # 短信发送失败不影响主业务流程
                                 logger.error(
-                                    f"短信发送触发失败: 订单ID={item.appraisalId}, "
+                                    f"状态通知短信发送触发失败: 订单ID={item.appraisalId}, "
                                     f"错误={str(sms_error)}",
                                     exc_info=True
                                 )
                         else:
-                            logger.warning("短信服务未初始化，跳过短信发送")
+                            logger.warning("短信服务未初始化，跳过状态通知短信发送")
                     else:
                         logger.warning(
-                            f"未找到用户手机号，跳过短信发送: "
+                            f"未找到用户手机号，跳过状态通知短信发送: "
                             f"订单ID={item.appraisalId}, userinfo_id={appraisal.userinfo_id}"
                         )
                 
