@@ -11,6 +11,8 @@ class AppraisalConsignmentItem(BaseModel):
     phone: Optional[str] = None
     expected_price: Optional[Decimal] = None
     is_del: Optional[str] = None
+    images: List[str] = []
+    videos: List[str] = []
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

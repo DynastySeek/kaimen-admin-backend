@@ -21,7 +21,8 @@ from app.config.settings import (
     SMS_REGION,
     SMS_SIGN_NAME,
     SMS_TEMPLATE_STATUS_COMPLETE,
-    SMS_TEMPLATE_DOUBT
+    SMS_TEMPLATE_DOUBT,
+    SMS_TEMPLATE_REJECTED
 )
 
 logger = logging.getLogger(__name__)
@@ -251,6 +252,160 @@ class SmsService:
         )
         thread.start()
         logger.debug(f"启动异步短信发送线程: 订单ID={appraisal_id}")
+
+    def send_status_rejected_notification(
+        self,
+        phone: str,
+        appraisal_id: str = ""
+    ) -> Dict[str, Any]:
+        """
+        发送鉴定单退回通知短信（同步）
+        
+        Args:
+            phone: 用户手机号
+            appraisal_id: 鉴定订单ID（用于日志）
+            
+        Returns:
+            发送结果字典
+        """
+        # 格式化手机号
+        formatted_phone = self._format_phone_number(phone)
+        
+        logger.info(
+            f"准备发送退回通知短信: 订单ID={appraisal_id}, 手机号={phone}"
+        )
+        
+        # 发送短信（模板不需要参数）
+        result = self._send_sms_internal(
+            phone_number=formatted_phone,
+            template_id=SMS_TEMPLATE_REJECTED,
+            template_params=None
+        )
+        
+        if result.get("success"):
+            logger.info(
+                f"退回通知短信发送成功: 订单ID={appraisal_id}, 手机号={phone}, "
+                f"request_id={result.get('request_id')}"
+            )
+        else:
+            logger.error(
+                f"退回通知短信发送失败: 订单ID={appraisal_id}, 手机号={phone}, "
+                f"错误={result.get('error_message', result.get('message'))}"
+            )
+        
+        return result
+
+    def send_status_rejected_notification_async(
+        self,
+        phone: str,
+        appraisal_id: str = ""
+    ) -> None:
+        """
+        异步发送鉴定单退回通知短信
+        
+        Args:
+            phone: 用户手机号
+            appraisal_id: 鉴定订单ID
+        """
+        # 使用守护线程异步发送，不阻塞主流程
+        thread = threading.Thread(
+            target=self.send_status_rejected_notification,
+            args=(phone, appraisal_id),
+            daemon=True,
+            name=f"sms-rejected-{appraisal_id}"
+        )
+        thread.start()
+        logger.debug(f"启动异步退回通知短信发送线程: 订单ID={appraisal_id}")
+
+    def send_status_notification(
+        self,
+        phone: str,
+        appraisal_status: str,
+        appraisal_id: str = ""
+    ) -> Dict[str, Any]:
+        """
+        发送鉴定状态通知短信（同步）
+        
+        Args:
+            phone: 用户手机号
+            appraisal_status: 鉴定状态 ("3"=已完结, "4"=待完善, "5"=已退回)
+            appraisal_id: 鉴定订单ID（用于日志）
+            
+        Returns:
+            发送结果字典
+        """
+        # 格式化手机号
+        formatted_phone = self._format_phone_number(phone)
+        
+        # 根据鉴定状态选择模板
+        if appraisal_status == "3":
+            # 已完结 - 使用模板 2532457
+            template_id = SMS_TEMPLATE_STATUS_COMPLETE
+            template_desc = "已完结通知"
+        elif appraisal_status == "4":
+            # 待完善 - 使用模板 2532458
+            template_id = SMS_TEMPLATE_DOUBT
+            template_desc = "待完善通知"
+        elif appraisal_status == "5":
+            # 已退回 - 使用模板 2538861
+            template_id = SMS_TEMPLATE_REJECTED
+            template_desc = "已退回通知"
+        else:
+            logger.warning(f"不需要发送短信的状态: {appraisal_status}, 订单ID: {appraisal_id}")
+            return {
+                "success": False,
+                "error_code": "INVALID_STATUS",
+                "error_message": f"状态 {appraisal_status} 不需要发送短信"
+            }
+        
+        logger.info(
+            f"准备发送状态通知短信: 订单ID={appraisal_id}, 手机号={phone}, "
+            f"状态={appraisal_status}, 模板={template_desc}"
+        )
+        
+        # 发送短信（这些模板都不需要参数）
+        result = self._send_sms_internal(
+            phone_number=formatted_phone,
+            template_id=template_id,
+            template_params=None
+        )
+        
+        if result.get("success"):
+            logger.info(
+                f"状态通知短信发送成功: 订单ID={appraisal_id}, 手机号={phone}, "
+                f"状态={appraisal_status}, request_id={result.get('request_id')}"
+            )
+        else:
+            logger.error(
+                f"状态通知短信发送失败: 订单ID={appraisal_id}, 手机号={phone}, "
+                f"状态={appraisal_status}, 错误={result.get('error_message', result.get('message'))}"
+            )
+        
+        return result
+
+    def send_status_notification_async(
+        self,
+        phone: str,
+        appraisal_status: str,
+        appraisal_id: str = ""
+    ) -> None:
+        """
+        异步发送鉴定状态通知短信
+        
+        Args:
+            phone: 用户手机号
+            appraisal_status: 鉴定状态
+            appraisal_id: 鉴定订单ID
+        """
+        # 使用守护线程异步发送，不阻塞主流程
+        thread = threading.Thread(
+            target=self.send_status_notification,
+            args=(phone, appraisal_status, appraisal_id),
+            daemon=True,
+            name=f"sms-status-{appraisal_id}"
+        )
+        thread.start()
+        logger.debug(f"启动异步状态通知短信发送线程: 订单ID={appraisal_id}, 状态={appraisal_status}")
 
 
 # 全局单例实例

@@ -20,6 +20,7 @@ from app.services.appraisal_stats import get_appraisal_stats_service
 logger = logging.getLogger(__name__)
 
 
+
 class AppraisalService:
 
     @staticmethod
@@ -193,6 +194,7 @@ class AppraisalService:
         success_count = 0
         failed_items = []
         stats_service = get_appraisal_stats_service()
+        sms_service = get_sms_service()
         
         for item in request:
             try:
@@ -226,6 +228,46 @@ class AppraisalService:
                         old_status=old_status,
                         new_status=appraisal.appraisal_status
                     )
+
+                # 检测状态变更，如果变更为需要通知的状态则发送短信
+                if old_status != appraisal.appraisal_status and appraisal.appraisal_status in ["3", "4", "5"]:
+                    logger.info(
+                        f"检测到状态变更为需要通知的状态: 订单ID={item.id}, "
+                        f"旧状态={old_status}, 新状态={appraisal.appraisal_status}"
+                    )
+                    
+                    # 查询用户手机号
+                    user_info = session.exec(
+                        select(UserInfo).where(UserInfo.id == appraisal.userinfo_id)
+                    ).first()
+                    
+                    if user_info and user_info.phone:
+                        # 异步发送状态通知短信
+                        if sms_service:
+                            try:
+                                sms_service.send_status_notification_async(
+                                    phone=user_info.phone,
+                                    appraisal_status=appraisal.appraisal_status,
+                                    appraisal_id=item.id
+                                )
+                                logger.info(
+                                    f"已触发状态通知短信发送: 订单ID={item.id}, "
+                                    f"状态={appraisal.appraisal_status}, 手机号={user_info.phone}"
+                                )
+                            except Exception as sms_error:
+                                # 短信发送失败不影响主业务流程
+                                logger.error(
+                                    f"状态通知短信发送触发失败: 订单ID={item.id}, "
+                                    f"错误={str(sms_error)}",
+                                    exc_info=True
+                                )
+                        else:
+                            logger.warning("短信服务未初始化，跳过状态通知短信发送")
+                    else:
+                        logger.warning(
+                            f"未找到用户手机号，跳过状态通知短信发送: "
+                            f"订单ID={item.id}, userinfo_id={appraisal.userinfo_id}"
+                        )
                 
             except Exception as e:
                 failed_items.append(FailedItem(
@@ -251,8 +293,10 @@ class AppraisalService:
         success_count = 0
         failed_items = []
         
-        # 获取短信服务实例和统计服务实例
+        # 获取短信服务实例
         sms_service = get_sms_service()
+        
+        # 获取统计服务实例
         stats_service = get_appraisal_stats_service()
         
         for item in request.items:
@@ -268,10 +312,8 @@ class AppraisalService:
                     ))
                     continue
                 
-                # 记录旧的状态和结果，用于变更检测和统计更新
+                # 记录旧状态用于统计更新
                 old_status = appraisal.appraisal_status
-                old_result = appraisal.appraisal_result
-                new_result = item.appraisalResult
                 
                 # 生成备注内容
                 notes = item.comment or ""
@@ -298,20 +340,20 @@ class AppraisalService:
                 session.add(appraisal)
                 success_count += 1
                 
-                # 更新统计数据
-                if appraisal.userinfo_id:
+                # 只有当鉴定结果为真(1)或假(2)时，才更新统计数据
+                if item.appraisalResult in ["1", "2"] and appraisal.userinfo_id:
                     stats_service.handle_status_change(
                         userinfo_id=appraisal.userinfo_id,
                         appraisal_id=appraisal.id,
                         old_status=old_status,
-                        new_status=appraisal.appraisal_status  # 新状态为"3"
+                        new_status=appraisal.appraisal_status
                     )
                 
-                # 检测鉴定结果是否变更，如果变更则发送短信通知
-                if old_result != new_result:
+                # 检测状态是否变更为已完结，如果是则发送短信通知
+                if old_status != appraisal.appraisal_status and appraisal.appraisal_status == "3":
                     logger.info(
-                        f"检测到鉴定结果变更: 订单ID={item.appraisalId}, "
-                        f"旧结果={old_result}, 新结果={new_result}"
+                        f"检测到状态变更为已完结: 订单ID={item.appraisalId}, "
+                        f"旧状态={old_status}, 新状态={appraisal.appraisal_status}"
                     )
                     
                     # 查询用户手机号
@@ -320,30 +362,30 @@ class AppraisalService:
                     ).first()
                     
                     if user_info and user_info.phone:
-                        # 异步发送短信通知
+                        # 异步发送状态通知短信
                         if sms_service:
                             try:
-                                sms_service.send_appraisal_notification_async(
+                                sms_service.send_status_notification_async(
                                     phone=user_info.phone,
-                                    appraisal_result=new_result,
+                                    appraisal_status=appraisal.appraisal_status,
                                     appraisal_id=item.appraisalId
                                 )
                                 logger.info(
-                                    f"已触发短信发送: 订单ID={item.appraisalId}, "
-                                    f"手机号={user_info.phone}"
+                                    f"已触发状态通知短信发送: 订单ID={item.appraisalId}, "
+                                    f"状态={appraisal.appraisal_status}, 手机号={user_info.phone}"
                                 )
                             except Exception as sms_error:
                                 # 短信发送失败不影响主业务流程
                                 logger.error(
-                                    f"短信发送触发失败: 订单ID={item.appraisalId}, "
+                                    f"状态通知短信发送触发失败: 订单ID={item.appraisalId}, "
                                     f"错误={str(sms_error)}",
                                     exc_info=True
                                 )
                         else:
-                            logger.warning("短信服务未初始化，跳过短信发送")
+                            logger.warning("短信服务未初始化，跳过状态通知短信发送")
                     else:
                         logger.warning(
-                            f"未找到用户手机号，跳过短信发送: "
+                            f"未找到用户手机号，跳过状态通知短信发送: "
                             f"订单ID={item.appraisalId}, userinfo_id={appraisal.userinfo_id}"
                         )
                 
