@@ -20,6 +20,7 @@ from app.services.appraisal_stats import get_appraisal_stats_service
 logger = logging.getLogger(__name__)
 
 
+
 class AppraisalService:
 
     @staticmethod
