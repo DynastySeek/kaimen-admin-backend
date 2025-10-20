@@ -293,9 +293,8 @@ class AppraisalService:
         success_count = 0
         failed_items = []
         
-        # 获取短信服务实例和统计服务实例
+        # 获取短信服务实例
         sms_service = get_sms_service()
-        stats_service = get_appraisal_stats_service()
         
         for item in request.items:
             try:
@@ -337,15 +336,6 @@ class AppraisalService:
                 
                 session.add(appraisal)
                 success_count += 1
-                
-                # 更新统计数据
-                if appraisal.userinfo_id:
-                    stats_service.handle_status_change(
-                        userinfo_id=appraisal.userinfo_id,
-                        appraisal_id=appraisal.id,
-                        old_status=old_status,
-                        new_status=appraisal.appraisal_status  # 新状态为"3"
-                    )
                 
                 # 检测状态是否变更为已完结，如果是则发送短信通知
                 if old_status != appraisal.appraisal_status and appraisal.appraisal_status == "3":
