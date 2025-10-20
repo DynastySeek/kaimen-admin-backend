@@ -193,6 +193,7 @@ class AppraisalService:
         success_count = 0
         failed_items = []
         stats_service = get_appraisal_stats_service()
+        sms_service = get_sms_service()
         
         for item in request:
             try:
@@ -226,6 +227,45 @@ class AppraisalService:
                         old_status=old_status,
                         new_status=appraisal.appraisal_status
                     )
+
+                # 检测状态是否变更为"已退回"，如果是则发送短信通知
+                if old_status != appraisal.appraisal_status and appraisal.appraisal_status == "5":
+                    logger.info(
+                        f"检测到状态变更为已退回: 订单ID={item.id}, "
+                        f"旧状态={old_status}, 新状态={appraisal.appraisal_status}"
+                    )
+                    
+                    # 查询用户手机号
+                    user_info = session.exec(
+                        select(UserInfo).where(UserInfo.id == appraisal.userinfo_id)
+                    ).first()
+                    
+                    if user_info and user_info.phone:
+                        # 异步发送退回通知短信
+                        if sms_service:
+                            try:
+                                sms_service.send_status_rejected_notification_async(
+                                    phone=user_info.phone,
+                                    appraisal_id=item.id
+                                )
+                                logger.info(
+                                    f"已触发退回通知短信发送: 订单ID={item.id}, "
+                                    f"手机号={user_info.phone}"
+                                )
+                            except Exception as sms_error:
+                                # 短信发送失败不影响主业务流程
+                                logger.error(
+                                    f"退回通知短信发送触发失败: 订单ID={item.id}, "
+                                    f"错误={str(sms_error)}",
+                                    exc_info=True
+                                )
+                        else:
+                            logger.warning("短信服务未初始化，跳过退回通知短信发送")
+                    else:
+                        logger.warning(
+                            f"未找到用户手机号，跳过退回通知短信发送: "
+                            f"订单ID={item.id}, userinfo_id={appraisal.userinfo_id}"
+                        )
                 
             except Exception as e:
                 failed_items.append(FailedItem(
