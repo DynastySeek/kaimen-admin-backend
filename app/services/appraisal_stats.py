@@ -13,10 +13,10 @@ logger = logging.getLogger(__name__)
 # 鉴定状态定义
 class AppraisalStatus:
     """鉴定状态常量"""
-    PENDING = "1"  # 待处理
+    WAIT = "1"  # 待鉴定
     IN_REVIEW = "2"  # 审核中
-    COMPLETED = "3"  # 已完成
-    NEED_SUPPLEMENT = "4"  # 补充材料
+    COMPLETED = "3"  # 已完结（终态）
+    NEED_SUPPLEMENT = "4"  # 待完善
     CANCELLED = "5"  # 已取消
     OTHER = "6"  # 其他状态
 
@@ -50,6 +50,10 @@ class AppraisalStatsService:
     
     # ========== Key生成 ==========
     
+    def _get_wait_key(self, userinfo_id: str) -> str:
+        """生成待鉴定计数的key"""
+        return f"{self.env_prefix}:appraisal_wait:{userinfo_id}"
+    
     def _get_to_improve_key(self, userinfo_id: str) -> str:
         """生成待完善计数的key"""
         return f"{self.env_prefix}:appraisal_to_improve:{userinfo_id}"
@@ -61,29 +65,96 @@ class AppraisalStatsService:
     # ========== 状态判断 ==========
     
     @staticmethod
-    def is_to_improve_status(appraisal_status: Optional[str]) -> bool:
-        """
-        判断是否为待完善状态
-        
-        待完善状态：补充材料(4)
-        """
-        if not appraisal_status:
+    def is_cached_status(status: Optional[str]) -> bool:
+        """判断是否为需要缓存的状态"""
+        if not status:
             return False
-        return appraisal_status == AppraisalStatus.NEED_SUPPLEMENT
+        return status in [
+            AppraisalStatus.WAIT,           # "1" 待鉴定
+            AppraisalStatus.COMPLETED,       # "3" 已完结
+            AppraisalStatus.NEED_SUPPLEMENT  # "4" 待完善
+        ]
     
     @staticmethod
-    def is_completed_status(appraisal_status: Optional[str]) -> bool:
-        """
-        判断是否为已完成状态
-        
-        已完成状态：已完成(3)、已取消(5)
-        """
-        if not appraisal_status:
+    def is_final_status(status: Optional[str]) -> bool:
+        """判断是否为终态（不允许转换）"""
+        if not status:
             return False
-        return appraisal_status in [
-            AppraisalStatus.COMPLETED,
-            AppraisalStatus.CANCELLED
-        ]
+        return status == AppraisalStatus.COMPLETED  # "3" 已完结
+    
+    # ========== 待鉴定统计 ==========
+    
+    def increment_wait(self, userinfo_id: str, amount: int = 1) -> bool:
+        """
+        增加待鉴定计数
+        
+        Args:
+            userinfo_id: 用户ID
+            amount: 增加数量，默认1
+        
+        Returns:
+            是否成功
+        """
+        try:
+            key = self._get_wait_key(userinfo_id)
+            self.redis.incr(key, amount)
+            # 设置过期时间（3天）
+            self.redis.expire(key, self.TO_IMPROVE_TTL)
+            logger.info(f"待鉴定计数+{amount}: userinfo_id={userinfo_id}, key={key}, TTL={self.TO_IMPROVE_TTL}s")
+            return True
+        except Exception as e:
+            logger.error(f"增加待鉴定计数失败: {e}", exc_info=True)
+            return False
+    
+    def decrement_wait(self, userinfo_id: str, amount: int = 1) -> bool:
+        """
+        减少待鉴定计数（使用Lua脚本防止负数）
+        
+        Args:
+            userinfo_id: 用户ID
+            amount: 减少数量，默认1
+        
+        Returns:
+            是否成功
+        """
+        try:
+            key = self._get_wait_key(userinfo_id)
+            # 使用Lua脚本保证原子性并防止负数，同时设置TTL
+            lua_script = """
+            local current = tonumber(redis.call('GET', KEYS[1]) or '0')
+            if current > 0 then
+                local result = redis.call('DECRBY', KEYS[1], ARGV[1])
+                redis.call('EXPIRE', KEYS[1], ARGV[2])
+                return result
+            else
+                return 0
+            end
+            """
+            client = self.redis.get_client()
+            client.eval(lua_script, 1, key, amount, self.TO_IMPROVE_TTL)
+            logger.info(f"待鉴定计数-{amount}: userinfo_id={userinfo_id}, key={key}, TTL={self.TO_IMPROVE_TTL}s")
+            return True
+        except Exception as e:
+            logger.error(f"减少待鉴定计数失败: {e}", exc_info=True)
+            return False
+    
+    def get_wait_count(self, userinfo_id: str) -> int:
+        """
+        获取待鉴定计数
+        
+        Args:
+            userinfo_id: 用户ID
+        
+        Returns:
+            待鉴定数量
+        """
+        try:
+            key = self._get_wait_key(userinfo_id)
+            value = self.redis.get(key)
+            return int(value) if value else 0
+        except Exception as e:
+            logger.error(f"获取待鉴定计数失败: {e}", exc_info=True)
+            return 0
     
     # ========== 待完善统计 ==========
     
@@ -111,7 +182,7 @@ class AppraisalStatsService:
     
     def decrement_to_improve(self, userinfo_id: str, amount: int = 1) -> bool:
         """
-        减少待完善计数
+        减少待完善计数（使用Lua脚本防止负数）
         
         Args:
             userinfo_id: 用户ID
@@ -122,13 +193,20 @@ class AppraisalStatsService:
         """
         try:
             key = self._get_to_improve_key(userinfo_id)
-            # 确保不会减到负数
-            current = self.get_to_improve_count(userinfo_id)
-            if current > 0:
-                self.redis.decr(key, amount)
-                # 刷新过期时间（3天）
-                self.redis.expire(key, self.TO_IMPROVE_TTL)
-                logger.info(f"待完善计数-{amount}: userinfo_id={userinfo_id}, key={key}, TTL={self.TO_IMPROVE_TTL}s")
+            # 使用Lua脚本保证原子性并防止负数，同时设置TTL
+            lua_script = """
+            local current = tonumber(redis.call('GET', KEYS[1]) or '0')
+            if current > 0 then
+                local result = redis.call('DECRBY', KEYS[1], ARGV[1])
+                redis.call('EXPIRE', KEYS[1], ARGV[2])
+                return result
+            else
+                return 0
+            end
+            """
+            client = self.redis.get_client()
+            client.eval(lua_script, 1, key, amount, self.TO_IMPROVE_TTL)
+            logger.info(f"待完善计数-{amount}: userinfo_id={userinfo_id}, key={key}, TTL={self.TO_IMPROVE_TTL}s")
             return True
         except Exception as e:
             logger.error(f"减少待完善计数失败: {e}", exc_info=True)
@@ -282,11 +360,13 @@ class AppraisalStatsService:
         Returns:
             统计数据字典
             {
+                "wait": 待鉴定数量,
                 "to_improve": 待完善数量,
                 "completed": 已完成数量
             }
         """
         return {
+            "wait": self.get_wait_count(userinfo_id),
             "to_improve": self.get_to_improve_count(userinfo_id),
             "completed": self.get_completed_count(userinfo_id)
         }
@@ -305,8 +385,9 @@ class AppraisalStatsService:
         
         业务规则：
         1. 只在状态实际变更时更新统计（old_status不为None）
-        2. 已完成(3)是终态，不会再变更
-        3. 只根据status判断
+        2. 已完结(3)是终态，不允许转换
+        3. 管理三种状态：待鉴定(1)、已完结(3)、待完善(4)
+        4. A->B转换：如果A在三种状态内则A-1，如果B在三种状态内则B+1
         
         Args:
             userinfo_id: 用户ID
@@ -318,51 +399,53 @@ class AppraisalStatsService:
             # 规则1: 不在新建时计数，只在状态变更时计数
             if old_status is None:
                 logger.info(
-                    f"跳过新建鉴定单统计: userinfo_id={userinfo_id}, appraisal_id={appraisal_id}, "
-                    f"new_status={new_status}"
+                    f"跳过新建鉴定单统计: userinfo_id={userinfo_id}, "
+                    f"appraisal_id={appraisal_id}, new_status={new_status}"
                 )
                 return
             
             # 规则2: 状态没有变化，跳过
             if old_status == new_status:
                 logger.debug(
-                    f"状态未变化，跳过统计: userinfo_id={userinfo_id}, appraisal_id={appraisal_id}, "
-                    f"status={old_status}"
+                    f"状态未变化，跳过统计: userinfo_id={userinfo_id}, "
+                    f"appraisal_id={appraisal_id}, status={old_status}"
                 )
                 return
             
-            old_is_to_improve = self.is_to_improve_status(old_status)
-            new_is_to_improve = self.is_to_improve_status(new_status)
-            old_is_completed = self.is_completed_status(old_status)
-            new_is_completed = self.is_completed_status(new_status)
-            
-            # 规则3: 已完成是终态，不应该再变更
-            if old_is_completed and not new_is_completed:
+            # 规则3: 已完结是终态，不允许转换
+            if self.is_final_status(old_status):
                 logger.warning(
-                    f"检测到从终态变更，跳过: userinfo_id={userinfo_id}, appraisal_id={appraisal_id}, "
-                    f"status: {old_status}->{new_status}"
+                    f"检测到从终态变更，跳过: userinfo_id={userinfo_id}, "
+                    f"appraisal_id={appraisal_id}, status: {old_status}->{new_status}"
                 )
                 return
+            
+            old_is_cached = self.is_cached_status(old_status)
+            new_is_cached = self.is_cached_status(new_status)
             
             logger.info(
                 f"状态变更: userinfo_id={userinfo_id}, appraisal_id={appraisal_id}, "
                 f"status: {old_status}->{new_status}, "
-                f"old_to_improve={old_is_to_improve}, new_to_improve={new_is_to_improve}, "
-                f"old_completed={old_is_completed}, new_completed={new_is_completed}"
+                f"old_is_cached={old_is_cached}, new_is_cached={new_is_cached}"
             )
-            
-            # 待完善状态变化
-            if not old_is_to_improve and new_is_to_improve:
-                # 从非待完善 -> 待完善
-                self.increment_to_improve(userinfo_id)
-            elif old_is_to_improve and not new_is_to_improve:
-                # 从待完善 -> 非待完善
-                self.decrement_to_improve(userinfo_id)
-            
-            # 已完成状态变化（只会从非已完成 -> 已完成）
-            if not old_is_completed and new_is_completed:
-                # 从非已完成 -> 已完成（终态）
-                self.add_to_completed(userinfo_id, appraisal_id)
+            # 步骤1: 如果旧状态在三种状态内，需要减少对应计数
+            if old_is_cached:
+                if old_status == AppraisalStatus.WAIT:
+                    self.decrement_wait(userinfo_id)
+                elif old_status == AppraisalStatus.NEED_SUPPLEMENT:
+                    self.decrement_to_improve(userinfo_id)
+                elif old_status == AppraisalStatus.COMPLETED:
+                    # 已完结状态移除（虽然终态不应该转换，但为了完整性）
+                    self.remove_from_completed(userinfo_id, appraisal_id)
+
+            # 步骤2: 如果新状态在三种状态内，需要增加对应计数
+            if new_is_cached:
+                if new_status == AppraisalStatus.WAIT:
+                    self.increment_wait(userinfo_id)
+                elif new_status == AppraisalStatus.NEED_SUPPLEMENT:
+                    self.increment_to_improve(userinfo_id)
+                elif new_status == AppraisalStatus.COMPLETED:
+                    self.add_to_completed(userinfo_id, appraisal_id)
         
         except Exception as e:
             logger.error(f"处理状态变更失败: {e}", exc_info=True)
