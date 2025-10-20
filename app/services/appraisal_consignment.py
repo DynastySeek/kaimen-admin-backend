@@ -3,7 +3,7 @@ from fastapi import Depends
 from typing import Optional
 from datetime import datetime
 
-from app.models.appraisal_consignment import AppraisalConsignment
+from app.models.appraisal_consignment import AppraisalConsignment, AppraisalConsignmentResourcePreview
 from app.schemas.appraisal_consignment import AppraisalConsignmentListData, AppraisalConsignmentItem
 from app.utils.db import get_session
 
@@ -69,18 +69,35 @@ class AppraisalConsignmentService:
         items_query = query.offset(offset).limit(pageSize).order_by(AppraisalConsignment.created_at.desc())
         items = session.exec(items_query).all()
         
-        item_list = [
-            AppraisalConsignmentItem(
+        item_list = []
+        for item in items:
+            # 获取资源信息（图片和视频）
+            res_stmt = select(AppraisalConsignmentResourcePreview).where(
+                AppraisalConsignmentResourcePreview.consignment_id == item.id
+            )
+            resources = session.exec(res_stmt).all()
+
+            images, videos = [], []
+            for r in resources:
+                if not r.url:
+                    continue
+                if r.url.lower().endswith((".jpg", ".jpeg", ".png")):
+                    images.append(r.url)
+                elif r.url.lower().endswith((".mp4", ".mov", ".avi")):
+                    videos.append(r.url)
+
+            item_list.append(AppraisalConsignmentItem(
                 id=item.id,
                 type=item.type,
                 desc=item.desc,
                 phone=item.phone,
                 expected_price=item.expected_price,
                 is_del=item.is_del,
+                images=images,
+                videos=videos,
                 created_at=item.created_at,
                 updated_at=item.updated_at
-            ) for item in items
-        ]
+            ))
         
         return AppraisalConsignmentListData(
             total=total,

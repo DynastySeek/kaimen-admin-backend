@@ -107,6 +107,12 @@ def get_runtime_env_config() -> Dict[str, str]:
         "COS_SECRET_KEY": COS_SECRET_KEY or "",
         "COS_REGION": COS_REGION or "",
         "COS_BUCKET": COS_BUCKET or "",
+        "REDIS_HOST": REDIS_HOST or "",
+        "REDIS_PORT": str(REDIS_PORT),
+        "REDIS_USER": REDIS_USER or "",
+        "REDIS_PASSWORD": REDIS_PASSWORD or "",
+        "REDIS_DB": str(REDIS_DB),
+        "REDIS_URL": REDIS_URL,
     }
 
 
