@@ -82,6 +82,9 @@ SMS_TEMPLATE_STATUS_COMPLETE = "2532457"  # 真/假/驳回（订单已完成）
 SMS_TEMPLATE_DOUBT = "2532458"  # 存疑/待完善
 SMS_TEMPLATE_REJECTED = "2538861"  # 已退回
 
+# 短信延迟发送配置
+SMS_DELAY_SECONDS = int(os.getenv("SMS_DELAY_SECONDS", 300))  # 默认5分钟延迟
+
 
 def get_runtime_env_config() -> Dict[str, str]:
     """

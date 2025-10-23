@@ -430,3 +430,14 @@ def get_sms_service() -> Optional[SmsService]:
     
     return _sms_service_instance
 
+
+def get_sms_delay_manager():
+    """
+    获取短信延迟发送管理器实例
+    
+    Returns:
+        SmsDelayManager实例，如果初始化失败则返回None
+    """
+    from app.services.sms_delay_manager import get_sms_delay_manager as _get_delay_manager
+    return _get_delay_manager()
+
