@@ -86,12 +86,32 @@ class AppraisalBuyService:
         items_query = query.offset(offset).limit(pageSize).order_by(AppraisalBuy.created_at.desc())
         items = session.exec(items_query).all()
         
+        # 批量查询用户信息，解决 N+1 查询问题
+        if not items:
+            return AppraisalBuyListData(
+                total=total,
+                page=page,
+                pageSize=pageSize,
+                list=[]
+            )
+        
+        # 收集所有需要查询的 userinfo_id
+        userinfo_ids = [item.userinfo_id for item in items if item.userinfo_id]
+        
+        # 批量查询用户信息
+        user_infos = []
+        if userinfo_ids:
+            user_infos_stmt = select(UserInfo).where(UserInfo.id.in_(userinfo_ids))
+            user_infos = session.exec(user_infos_stmt).all()
+        
+        # 构建用户信息映射，提高查找效率
+        user_info_map = {user.id: user for user in user_infos}
+        
+        # 构建结果列表
         item_list = []
         for item in items:
-            # 获取用户信息（包含手机号）
-            user_info = session.exec(
-                select(UserInfo).where(UserInfo.id == item.userinfo_id)
-            ).first()
+            # 从映射中获取用户信息
+            user_info = user_info_map.get(item.userinfo_id)
             
             item_list.append(AppraisalBuyItem(
                 id=item.id,
