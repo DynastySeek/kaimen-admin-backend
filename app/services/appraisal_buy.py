@@ -4,6 +4,7 @@ from typing import Optional
 from datetime import datetime
 
 from app.models.appraisal_buy import AppraisalBuy
+from app.models.appraisal import UserInfo
 from app.schemas.appraisal_buy import AppraisalBuyListData, AppraisalBuyItem
 from app.utils.db import get_session
 
@@ -44,8 +45,18 @@ class AppraisalBuyService:
         if maxPrice is not None:
             filters.append(AppraisalBuy.max_price <= maxPrice)
         
+        # 用户手机号过滤 - 通过手机号查询userinfo表获取userinfo_id
         if userPhone:
-            filters.append(AppraisalBuy.phone == userPhone)
+            userinfo_subquery = (
+                select(UserInfo.id)
+                .where(UserInfo.phone == userPhone)
+            )
+            userinfo_ids = session.exec(userinfo_subquery).all()
+            if userinfo_ids:
+                filters.append(AppraisalBuy.userinfo_id.in_(userinfo_ids))
+            else:
+                # 如果没有找到对应的用户，返回空结果
+                filters.append(AppraisalBuy.id == -1)
         
         if phone:
             filters.append(AppraisalBuy.phone.like(f"%{phone}%"))
@@ -75,19 +86,45 @@ class AppraisalBuyService:
         items_query = query.offset(offset).limit(pageSize).order_by(AppraisalBuy.created_at.desc())
         items = session.exec(items_query).all()
         
-        item_list = [
-            AppraisalBuyItem(
+        # 批量查询用户信息，解决 N+1 查询问题
+        if not items:
+            return AppraisalBuyListData(
+                total=total,
+                page=page,
+                pageSize=pageSize,
+                list=[]
+            )
+        
+        # 收集所有需要查询的 userinfo_id
+        userinfo_ids = [item.userinfo_id for item in items if item.userinfo_id]
+        
+        # 批量查询用户信息
+        user_infos = []
+        if userinfo_ids:
+            user_infos_stmt = select(UserInfo).where(UserInfo.id.in_(userinfo_ids))
+            user_infos = session.exec(user_infos_stmt).all()
+        
+        # 构建用户信息映射，提高查找效率
+        user_info_map = {user.id: user for user in user_infos}
+        
+        # 构建结果列表
+        item_list = []
+        for item in items:
+            # 从映射中获取用户信息
+            user_info = user_info_map.get(item.userinfo_id)
+            
+            item_list.append(AppraisalBuyItem(
                 id=item.id,
                 buyer_type=item.buyer_type,
                 desc=item.desc,
                 phone=item.phone,
+                user_phone=user_info.phone if user_info else None,
                 min_price=item.min_price,
                 max_price=item.max_price,
                 is_del=item.is_del,
                 created_at=item.created_at,
                 updated_at=item.updated_at
-            ) for item in items
-        ]
+            ))
         
         return AppraisalBuyListData(
             total=total,

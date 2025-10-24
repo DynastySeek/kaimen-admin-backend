@@ -106,12 +106,56 @@ class AppraisalService:
         )
         appraisals = session.exec(stmt).all()
 
+        # 批量查询优化：收集所有需要的ID
+        appraisal_ids = [a.id for a in appraisals]
+        userinfo_ids = [a.userinfo_id for a in appraisals if a.userinfo_id]
+
+        # 批量查询所有资源
+        resources_map = {}
+        if appraisal_ids:
+            resources_stmt = select(AppraisalResource).where(AppraisalResource.appraisal_id.in_(appraisal_ids))
+            all_resources = session.exec(resources_stmt).all()
+            
+            for resource in all_resources:
+                if resource.appraisal_id not in resources_map:
+                    resources_map[resource.appraisal_id] = []
+                resources_map[resource.appraisal_id].append(resource)
+
+        # 批量查询所有用户信息
+        userinfo_map = {}
+        if userinfo_ids:
+            userinfo_stmt = select(UserInfo).where(UserInfo.id.in_(userinfo_ids))
+            all_userinfo = session.exec(userinfo_stmt).all()
+            
+            for userinfo in all_userinfo:
+                userinfo_map[userinfo.id] = userinfo
+
+        # 批量查询所有鉴定结果
+        appraisal_result_ids = [a.last_appraisal_result_id for a in appraisals if a.last_appraisal_result_id]
+        appraisal_result_map = {}
+        if appraisal_result_ids:
+            appraisal_result_stmt = select(AppraisalResult).where(AppraisalResult.id.in_(appraisal_result_ids))
+            all_appraisal_results = session.exec(appraisal_result_stmt).all()
+            
+            for appraisal_result in all_appraisal_results:
+                appraisal_result_map[appraisal_result.id] = appraisal_result
+
+        # 批量查询所有鉴定师用户信息
+        appraiser_ids = [a.last_appraiser_id for a in appraisals if a.last_appraiser_id]
+        appraiser_map = {}
+        if appraiser_ids:
+            appraiser_stmt = select(User).where(User.id.in_(appraiser_ids))
+            all_appraisers = session.exec(appraiser_stmt).all()
+            
+            for appraiser in all_appraisers:
+                appraiser_map[appraiser.id] = appraiser
+
         result_list = []
 
         for a in appraisals:
-            res_stmt = select(AppraisalResource).where(AppraisalResource.appraisal_id == a.id)
-            resources = session.exec(res_stmt).all()
-
+            # 从缓存中获取资源
+            resources = resources_map.get(a.id, [])
+            
             images, videos = [], []
             for r in resources:
                 if not r.url:
@@ -121,10 +165,30 @@ class AppraisalService:
                 elif r.url.lower().endswith((".mp4", ".mov", ".avi")):
                     videos.append(r.url)
 
-            # 获取用户信息（包含手机号）
-            user_info = session.exec(
-                select(UserInfo).where(UserInfo.id == a.userinfo_id)
-            ).first()
+            # 从缓存中获取用户信息
+            user_info = userinfo_map.get(a.userinfo_id)
+
+            # 从缓存中获取鉴定结果信息
+            last_appraisal_result = appraisal_result_map.get(a.last_appraisal_result_id)
+            last_appraisal_result_data = None
+            if last_appraisal_result:
+                last_appraisal_result_data = {
+                    "id": last_appraisal_result.id,
+                    "appraisal_id": last_appraisal_result.appraisal_id,
+                    "result": last_appraisal_result.result,
+                    "notes": last_appraisal_result.notes,
+                    "user_id": last_appraisal_result.user_id,
+                }
+
+            # 从缓存中获取鉴定师信息
+            last_appraiser = appraiser_map.get(a.last_appraiser_id)
+            last_appraiser_data = None
+            if last_appraiser:
+                last_appraiser_data = {
+                    "id": last_appraiser.id,
+                    "name": last_appraiser.name,
+                    "nickname": last_appraiser.nickname,
+                }
 
             result_list.append({
                 "appraisal_id": a.id,
@@ -136,9 +200,11 @@ class AppraisalService:
                 "images": images,
                 "videos": videos,
                 "create_time": a.created_at,
+                "appraisal_result": a.appraisal_result,
                 "last_appraiser_id": a.last_appraiser_id,
                 "last_appraisal_result_id": a.last_appraisal_result_id,
-                "appraisal_result": a.appraisal_result,
+                "last_appraisal_result": last_appraisal_result_data,
+                "last_appraiser": last_appraiser_data,
             })
 
         return success_response(data={
@@ -147,46 +213,6 @@ class AppraisalService:
             "page": page,
             "pageSize": pageSize
         })
-
-    @staticmethod
-    def get_appraisal_result(request: BatchDetailRequest, session: Session = Depends(get_session)):
-        
-        result_list = []
-        
-        for appraisal_id in request.ids:
-            latest_result = session.exec(
-            select(AppraisalResult).where(AppraisalResult.appraisal_id == appraisal_id)
-                .order_by(AppraisalResult.created_at.desc())
-            ).first()
-            print(latest_result)
-            
-            if not latest_result:
-                continue
-
-            # 查询鉴定师信息
-            appraiser_name = ""
-            appraiser_nickname = ""
-            if latest_result and latest_result.user_id:
-                user = session.exec(
-                    select(User).where(User.id == latest_result.user_id)
-                ).first()
-                if user:
-                    appraiser_name = user.name or ""
-                    appraiser_nickname = user.nickname or ""
-            
-            latest_appraisal_data = {
-                "appraisal_id": appraisal_id,
-                "created_at": str(latest_result.created_at or 0),
-                "result": latest_result.result,
-                "notes": latest_result.notes,
-                "appraiser_user_id": latest_result.user_id,
-                "appraiser_name": appraiser_name,
-                "appraiser_nickname": appraiser_nickname
-            }
-            
-            result_list.append(latest_appraisal_data)
-            
-        return success_response(data=result_list, message="查询成功")
 
     @staticmethod
     def batch_update_appraisals(request: List[AppraisalUpdateItem], session: Session = Depends(get_session)):

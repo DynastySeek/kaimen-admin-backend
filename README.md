@@ -75,6 +75,9 @@ source venv/bin/activate
 
 # 安装依赖
 pip install -r requirements.txt
+
+# 退出虚拟环境
+deactivate
 ```
 
 ### 3. 配置环境变量

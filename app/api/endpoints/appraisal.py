@@ -58,18 +58,6 @@ def get_appraisal_list(
         raise HTTPException(status_code=500, detail=f"获取鉴定列表失败: {str(e)}")
 
 
-@router.post("/result")
-def get_appraisal_result(
-    request: BatchDetailRequest,
-    session: Session = Depends(get_session)
-):
-    try:
-        result = AppraisalService.get_appraisal_result(request, session)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取鉴定详情失败: {str(e)}")
-
-
 @router.post("/update")
 def batch_update_appraisals(
     items: List[AppraisalUpdateItem],
