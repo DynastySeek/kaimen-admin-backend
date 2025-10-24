@@ -14,7 +14,7 @@ from app.schemas.appraisal import (
 from app.utils.db import get_session
 from app.utils.response import success_response
 from app.core.dependencies import get_current_user_required
-from app.services.sms import get_sms_service
+from app.services.sms import get_sms_service, get_sms_delay_manager
 from app.services.appraisal_stats import get_appraisal_stats_service
 
 logger = logging.getLogger(__name__)
@@ -242,27 +242,28 @@ class AppraisalService:
                     ).first()
                     
                     if user_info and user_info.phone:
-                        # 异步发送状态通知短信
-                        if sms_service:
+                        # 使用延迟发送管理器
+                        delay_manager = get_sms_delay_manager()
+                        if delay_manager:
                             try:
-                                sms_service.send_status_notification_async(
+                                delay_manager.schedule_delayed_sms(
+                                    appraisal_id=str(item.id),
                                     phone=user_info.phone,
-                                    appraisal_status=appraisal.appraisal_status,
-                                    appraisal_id=item.id
+                                    status=appraisal.appraisal_status
                                 )
                                 logger.info(
-                                    f"已触发状态通知短信发送: 订单ID={item.id}, "
+                                    f"已调度延迟状态通知短信: 订单ID={item.id}, "
                                     f"状态={appraisal.appraisal_status}, 手机号={user_info.phone}"
                                 )
-                            except Exception as sms_error:
-                                # 短信发送失败不影响主业务流程
+                            except Exception as delay_error:
+                                # 延迟发送失败不影响主业务流程
                                 logger.error(
-                                    f"状态通知短信发送触发失败: 订单ID={item.id}, "
-                                    f"错误={str(sms_error)}",
+                                    f"延迟状态通知短信调度失败: 订单ID={item.id}, "
+                                    f"错误={str(delay_error)}",
                                     exc_info=True
                                 )
                         else:
-                            logger.warning("短信服务未初始化，跳过状态通知短信发送")
+                            logger.warning("延迟发送管理器未初始化，跳过状态通知短信发送")
                     else:
                         logger.warning(
                             f"未找到用户手机号，跳过状态通知短信发送: "
@@ -362,27 +363,28 @@ class AppraisalService:
                     ).first()
                     
                     if user_info and user_info.phone:
-                        # 异步发送状态通知短信
-                        if sms_service:
+                        # 使用延迟发送管理器
+                        delay_manager = get_sms_delay_manager()
+                        if delay_manager:
                             try:
-                                sms_service.send_status_notification_async(
+                                delay_manager.schedule_delayed_sms(
+                                    appraisal_id=str(item.appraisalId),
                                     phone=user_info.phone,
-                                    appraisal_status=appraisal.appraisal_status,
-                                    appraisal_id=item.appraisalId
+                                    status=appraisal.appraisal_status
                                 )
                                 logger.info(
-                                    f"已触发状态通知短信发送: 订单ID={item.appraisalId}, "
+                                    f"已调度延迟状态通知短信: 订单ID={item.appraisalId}, "
                                     f"状态={appraisal.appraisal_status}, 手机号={user_info.phone}"
                                 )
-                            except Exception as sms_error:
-                                # 短信发送失败不影响主业务流程
+                            except Exception as delay_error:
+                                # 延迟发送失败不影响主业务流程
                                 logger.error(
-                                    f"状态通知短信发送触发失败: 订单ID={item.appraisalId}, "
-                                    f"错误={str(sms_error)}",
+                                    f"延迟状态通知短信调度失败: 订单ID={item.appraisalId}, "
+                                    f"错误={str(delay_error)}",
                                     exc_info=True
                                 )
                         else:
-                            logger.warning("短信服务未初始化，跳过状态通知短信发送")
+                            logger.warning("延迟发送管理器未初始化，跳过状态通知短信发送")
                     else:
                         logger.warning(
                             f"未找到用户手机号，跳过状态通知短信发送: "
