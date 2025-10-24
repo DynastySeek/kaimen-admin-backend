@@ -15,6 +15,7 @@ class AppraisalBuy(SQLModel, table=True):
     __tablename__ = f"appraisal_buy{get_table_suffix('appraisal_buy')}"
     
     id: Optional[int] = Field(default=None, primary_key=True, description="主键信息")
+    userinfo_id: Optional[str] = Field(default=None, max_length=64, description="用户信息ID")
     buyer_type: Optional[str] = Field(default=None, max_length=64, description="求购类型")
     desc: Optional[str] = Field(default=None, max_length=256, description="求购描述")
     phone: Optional[str] = Field(default=None, max_length=64, description="手机号")

@@ -9,6 +9,7 @@ class AppraisalBuyItem(BaseModel):
     buyer_type: Optional[str] = None
     desc: Optional[str] = None
     phone: Optional[str] = None
+    user_phone: Optional[str] = None
     min_price: Optional[Decimal] = None
     max_price: Optional[Decimal] = None
     is_del: Optional[str] = None

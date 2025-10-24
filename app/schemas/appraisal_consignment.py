@@ -9,6 +9,7 @@ class AppraisalConsignmentItem(BaseModel):
     type: Optional[str] = None
     desc: Optional[str] = None
     phone: Optional[str] = None
+    user_phone: Optional[str] = None
     expected_price: Optional[Decimal] = None
     is_del: Optional[str] = None
     images: List[str] = []
