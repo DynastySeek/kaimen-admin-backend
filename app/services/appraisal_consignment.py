@@ -3,8 +3,9 @@ from fastapi import Depends
 from typing import Optional
 from datetime import datetime
 
-from app.models.appraisal_consignment import AppraisalConsignment, AppraisalConsignmentResource
-from app.models.appraisal import UserInfo
+from app.models.appraisal_consignment import AppraisalConsignment
+from app.models.appraisal_consignment_resource import AppraisalConsignmentResource
+from app.models.user_info import UserInfo
 from app.schemas.appraisal_consignment import AppraisalConsignmentListData, AppraisalConsignmentItem
 from app.utils.db import get_session
 

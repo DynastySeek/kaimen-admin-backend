@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import datetime
 
 from app.models.appraisal_buy import AppraisalBuy
-from app.models.appraisal import UserInfo
+from app.models.user_info import UserInfo
 from app.schemas.appraisal_buy import AppraisalBuyListData, AppraisalBuyItem
 from app.utils.db import get_session
 

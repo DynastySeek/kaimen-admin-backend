@@ -4,7 +4,7 @@ from datetime import datetime
 import time
 import uuid
 
-from app.models.article import ArticlePreview
+from app.models.article import Article
 from app.schemas.article import ArticleListData, ArticleDetail, ArticleUpdate, ArticleCreate
 
 
@@ -17,7 +17,7 @@ class ArticleService:
         article_id = str(uuid.uuid4()).replace('-', '')
         
         # 创建新文章实例
-        new_article = ArticlePreview(
+        new_article = Article(
             id=article_id,
             title=article_data.title,
             cover_pic=article_data.cover_pic,
@@ -49,26 +49,26 @@ class ArticleService:
         session: Session = None
     ) -> ArticleListData:
         
-        query = select(ArticlePreview).where(ArticlePreview.is_del != "1")
+        query = select(Article).where(Article.is_del != "1")
         
         if title:
-            query = query.where(ArticlePreview.title.like(f"%{title}%"))
+            query = query.where(Article.title.like(f"%{title}%"))
         
         if author:
-            query = query.where(ArticlePreview.author.like(f"%{author}%"))
+            query = query.where(Article.author.like(f"%{author}%"))
         
         if pub_status:
-            query = query.where(ArticlePreview.pub_status == pub_status)
+            query = query.where(Article.pub_status == pub_status)
         
         if createStartTime:
             start_timestamp = int(datetime.fromisoformat(createStartTime.replace('Z', '+00:00')).timestamp())
-            query = query.where(ArticlePreview.created_at >= start_timestamp)
+            query = query.where(Article.created_at >= start_timestamp)
         
         if createEndTime:
             end_timestamp = int(datetime.fromisoformat(createEndTime.replace('Z', '+00:00')).timestamp())
-            query = query.where(ArticlePreview.created_at <= end_timestamp)
+            query = query.where(Article.created_at <= end_timestamp)
         
-        total_query = select(func.count(ArticlePreview.id)).select_from(query.subquery())
+        total_query = select(func.count(Article.id)).select_from(query.subquery())
         total = session.exec(total_query).one()
         
         offset = (page - 1) * pageSize
@@ -101,7 +101,7 @@ class ArticleService:
     
     @staticmethod
     def get_article_detail(article_id: str, session: Session) -> Optional[ArticleDetail]:
-        article = session.get(ArticlePreview, article_id)
+        article = session.get(Article, article_id)
         
         if not article or article.is_del == "1":
             return None
@@ -122,7 +122,7 @@ class ArticleService:
     
     @staticmethod
     def update_article(article_id: str, article_data: ArticleUpdate, current_user, session: Session) -> bool:
-        article = session.get(ArticlePreview, article_id)
+        article = session.get(Article, article_id)
         
         if not article or article.is_del == "1":
             return False

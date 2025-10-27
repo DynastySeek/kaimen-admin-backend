@@ -6,7 +6,7 @@ from typing import Optional
 from app.config.settings import get_table_suffix
 
 
-class ArticlePreview(SQLModel, table=True):
+class Article(SQLModel, table=True):
     """
     文章预览模型
     """
