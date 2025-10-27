@@ -4,7 +4,10 @@ from typing import List, Optional
 from datetime import datetime, timezone
 import logging
 
-from app.models.appraisal import Appraisal, AppraisalResource, AppraisalResult, UserInfo
+from app.models.appraisal import Appraisal
+from app.models.appraisal_resource import AppraisalResource
+from app.models.appraisal_result import AppraisalResult
+from app.models.user_info import UserInfo
 from app.models.user import User
 from app.schemas.appraisal import (
     BatchDetailRequest, AppraisalDetail, LatestAppraisalData,
