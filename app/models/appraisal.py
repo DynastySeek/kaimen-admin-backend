@@ -3,7 +3,6 @@
 """
 from sqlmodel import SQLModel, Field, Relationship, Column, String
 from typing import Optional, List, TYPE_CHECKING
-from app.config.settings import get_table_suffix
 
 if TYPE_CHECKING:
     from .appraisal_resource import AppraisalResource
@@ -11,7 +10,7 @@ if TYPE_CHECKING:
 
 class Appraisal(SQLModel, table=True):
     """鉴定订单模型"""
-    __tablename__ = f"appraisal{get_table_suffix('appraisal')}"
+    __tablename__ = "appraisal"
 
     id: str = Field(sa_column=Column("_id", String(34), primary_key=True))
     title: Optional[str] = None
