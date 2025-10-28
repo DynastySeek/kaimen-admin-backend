@@ -5,14 +5,13 @@ from sqlmodel import SQLModel, Field
 from typing import Optional
 from datetime import datetime
 from decimal import Decimal
-from app.config.settings import get_table_suffix
 
 
 class AppraisalConsignment(SQLModel, table=True):
     """
     鉴宝寄卖信息模型
     """
-    __tablename__ = f"appraisal_consignment{get_table_suffix('appraisal_consignment')}"
+    __tablename__ = "appraisal_consignment"
     
     id: Optional[int] = Field(default=None, primary_key=True, description="主键信息")
     userinfo_id: Optional[str] = Field(default=None, max_length=64, description="用户信息ID")

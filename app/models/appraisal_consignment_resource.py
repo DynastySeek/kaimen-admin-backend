@@ -4,14 +4,13 @@
 from sqlmodel import SQLModel, Field
 from typing import Optional
 from datetime import datetime
-from app.config.settings import get_table_suffix
 
 
 class AppraisalConsignmentResource(SQLModel, table=True):
     """
     鉴宝寄卖关联信息模型
     """
-    __tablename__ = f"appraisal_consignment_resource{get_table_suffix('appraisal_consignment_resource')}"
+    __tablename__ = "appraisal_consignment_resource"
     
     id: Optional[int] = Field(default=None, primary_key=True, description="主键信息")
     consignment_id: int = Field(description="寄售Id")

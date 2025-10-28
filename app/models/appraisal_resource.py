@@ -3,7 +3,6 @@
 """
 from sqlmodel import SQLModel, Field, Relationship, Column, String
 from typing import Optional, TYPE_CHECKING
-from app.config.settings import get_table_suffix
 
 if TYPE_CHECKING:
     from .appraisal import Appraisal
@@ -11,12 +10,12 @@ if TYPE_CHECKING:
 
 class AppraisalResource(SQLModel, table=True):
     """鉴定资源模型"""
-    __tablename__ = f"appraisal_resource{get_table_suffix('appraisal_resource')}"
+    __tablename__ = "appraisal_resource"
 
-    id: str = Field(sa_column=Column("_id", String(34), primary_key=True))
+    id: Optional[int] = Field(default=None, primary_key=True, description="主键信息")
     appraisal_id: Optional[str] = Field(
         default=None,
-        foreign_key=f"appraisal{get_table_suffix('appraisal')}._id"
+        foreign_key="appraisal._id"
     )
     type: Optional[str] = Field(default=None, sa_column=Column("type", String(64)))
     url: Optional[str] = None
