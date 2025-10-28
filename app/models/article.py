@@ -3,14 +3,13 @@
 """
 from sqlmodel import SQLModel, Field, Column, String, Text
 from typing import Optional
-from app.config.settings import get_table_suffix
 
 
 class Article(SQLModel, table=True):
     """
     文章预览模型
     """
-    __tablename__ = f"article{get_table_suffix('article')}"
+    __tablename__ = "article"
     
     id: str = Field(sa_column=Column("_id", String(34), primary_key=True), description="主键ID")
     author: Optional[str] = Field(default=None, sa_column=Column("author", Text), description="作者")
