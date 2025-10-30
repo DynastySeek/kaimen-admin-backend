@@ -16,7 +16,7 @@ def health_check():
         "status": ResponseCode.SUCCESS,
         "timestamp": current_time.strftime("%Y-%m-%d %H:%M:%S"),
         "service": "kaimen-admin-backend",
-        "version": "1.0.2"
+        "version": "1.0.3"
     }
     
     return success_response(
