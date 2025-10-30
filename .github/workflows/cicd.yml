@@ -83,7 +83,7 @@ jobs:
             --set-string secrets.MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }} \
             --set-string secrets.MYSQL_HOST=${{ secrets.MYSQL_HOST }} \
             --set secrets.MYSQL_PORT=${{ secrets.MYSQL_PORT }} \
-            --set-string secrets.MYSQL_DB=${{ secrets.MYSQL_DB }} \
+            --set-string secrets.MYSQL_DB=${{ secrets.MYSQL_TEST_DB }} \
             --set-string imagePullSecrets.username=${{ secrets.TCR_USERNAME }} \
             --set-string imagePullSecrets.password=${{ secrets.TCR_PASSWORD }} \
             --set config.SECRET_KEY=${{ secrets.SECRET_KEY }} \
