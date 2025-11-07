@@ -245,7 +245,8 @@ class AppraisalService:
                     appraisal.appraisal_status = str(item.appraisal_status)
                 if item.appraisal_class is not None:
                     appraisal.first_class = str(item.appraisal_class)
-                
+                if item.fine_class is not None:
+                    appraisal.fine_class = int(item.fine_class)
                 session.add(appraisal)
                 success_count += 1
                 

@@ -23,5 +23,8 @@ class Appraisal(SQLModel, table=True):
     last_appraiser_id: Optional[int] = Field(default=None, description="最新鉴定人id")
     last_appraisal_result_id: Optional[int] = Field(default=None, description="最新鉴定结果id")
     appraisal_result: Optional[str] = Field(default=None, max_length=64, description="鉴定结果")
+    fine_class: Optional[int] = 0
+    phone: Optional[str] = None
+    wechat_id: Optional[str] = None
 
     resources: List["AppraisalResource"] = Relationship(back_populates="appraisal")
