@@ -365,7 +365,17 @@ class AppraisalService:
                 appraisal.last_appraiser_id = current_user.id
                 appraisal.last_appraisal_result_id = result.id
                 appraisal.appraisal_result = item.appraisalResult
-                appraisal.appraisal_status = "3"  # 添加鉴定结果后自动设置为已完成状态
+                
+                # 根据鉴定结果设置相应的状态
+                # 1=真, 2=假 -> 状态3=已完结
+                # 3=存疑 -> 状态4=待完善
+                # 4=驳回 -> 状态5=已退回
+                if item.appraisalResult == "1" or item.appraisalResult == "2":
+                    appraisal.appraisal_status = "3"  # 已完结
+                elif item.appraisalResult == "3":
+                    appraisal.appraisal_status = "4"  # 待完善
+                elif item.appraisalResult == "4":
+                    appraisal.appraisal_status = "5"  # 已退回
                 
                 session.add(appraisal)
                 success_count += 1
@@ -379,10 +389,10 @@ class AppraisalService:
                         new_status=appraisal.appraisal_status
                     )
                 
-                # 检测状态是否变更为已完结，如果是则发送短信通知
-                if old_status != appraisal.appraisal_status and appraisal.appraisal_status == "3":
+                # 检测状态是否变更为需要通知的状态（3=已完结, 4=待完善, 5=已退回），如果是则发送短信通知
+                if old_status != appraisal.appraisal_status and appraisal.appraisal_status in ["3", "4", "5"]:
                     logger.info(
-                        f"检测到状态变更为已完结: 订单ID={item.appraisalId}, "
+                        f"检测到状态变更为需要通知的状态: 订单ID={item.appraisalId}, "
                         f"旧状态={old_status}, 新状态={appraisal.appraisal_status}"
                     )
                     
