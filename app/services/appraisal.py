@@ -369,15 +369,13 @@ class AppraisalService:
                 appraisal.appraisal_result = item.appraisalResult
                 
                 # 根据鉴定结果设置相应的状态
+                # 0 暂无提交
                 # 1=真, 2=假 -> 状态3=已完结
                 # 3=存疑 -> 状态4=待完善
-                # 4=驳回 -> 状态5=已退回
                 if item.appraisalResult == "1" or item.appraisalResult == "2":
                     appraisal.appraisal_status = "3"  # 已完结
                 elif item.appraisalResult == "3":
                     appraisal.appraisal_status = "4"  # 待完善
-                elif item.appraisalResult == "4":
-                    appraisal.appraisal_status = "5"  # 已退回
                 
                 session.add(appraisal)
                 success_count += 1
