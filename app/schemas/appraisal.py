@@ -72,6 +72,7 @@ class AppraisalUpdateItem(BaseModel):
     id: str
     appraisal_status: Optional[int] = None
     appraisal_class: Optional[str] = None
+    fine_class: Optional[int] = None
 
 
 class OrderUpdateResult(BaseModel):

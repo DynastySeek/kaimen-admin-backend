@@ -200,6 +200,7 @@ class AppraisalService:
                 "description": a.desc or "",
                 "appraisal_status": a.appraisal_status or "",
                 "first_class": a.first_class or "",
+                "fine_class": a.fine_class or 0,
                 "images": images,
                 "videos": videos,
                 "create_time": a.created_at,
@@ -245,7 +246,8 @@ class AppraisalService:
                     appraisal.appraisal_status = str(item.appraisal_status)
                 if item.appraisal_class is not None:
                     appraisal.first_class = str(item.appraisal_class)
-                
+                if item.fine_class is not None:
+                    appraisal.fine_class = int(item.fine_class)
                 session.add(appraisal)
                 success_count += 1
                 
