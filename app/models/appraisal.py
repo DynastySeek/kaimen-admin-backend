@@ -20,10 +20,12 @@ class Appraisal(SQLModel, table=True):
     created_at: Optional[int] = Field(default=None, sa_column=Column("createdAt"))
     updated_at: Optional[int] = Field(default=None, sa_column=Column("updatedAt"))
     userinfo_id: Optional[str] = Field(default=None, sa_column=Column("userinfo_id", String(64)))
+    #wxchatId: Optional[str]= Field(default=None,sa_column=Column("wechat_id",String(128)), description="微信")
     last_appraiser_id: Optional[int] = Field(default=None, description="最新鉴定人id")
     last_appraisal_result_id: Optional[int] = Field(default=None, description="最新鉴定结果id")
     appraisal_result: Optional[str] = Field(default=None, max_length=64, description="鉴定结果")
     fine_class: Optional[int] = 0
+    appraisal_business_type: Optional[str] = None    
     phone: Optional[str] = None
     wechat_id: Optional[str] = None
 

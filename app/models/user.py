@@ -1,7 +1,7 @@
 """
 用户相关数据模型
 """
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field,Column
 from typing import Optional
 from datetime import datetime, timezone
 

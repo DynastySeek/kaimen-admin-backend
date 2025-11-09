@@ -13,4 +13,5 @@ class UserInfo(SQLModel, table=True):
     id: str = Field(sa_column=Column("_id", String(34), primary_key=True))
     phone: Optional[str] = None
     created_at: Optional[datetime] = Field(default=None, sa_column=Column("created_at"))
-    nick_name: Optional[str] = None
+    nick_name: Optional[str] = None    
+   

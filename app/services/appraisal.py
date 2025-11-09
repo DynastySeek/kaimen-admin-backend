@@ -201,6 +201,8 @@ class AppraisalService:
                 "appraisal_status": a.appraisal_status or "",
                 "first_class": a.first_class or "",
                 "fine_class": a.fine_class or 0,
+                "appraisal_business_type": a.appraisal_business_type or "",
+                "wechat_id": a.wechat_id or None,  
                 "images": images,
                 "videos": videos,
                 "create_time": a.created_at,
