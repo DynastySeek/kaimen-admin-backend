@@ -63,16 +63,16 @@ class AppraisalService:
                 return None
 
         # 创建时间范围过滤
-        if createStartTime and (start_t := parse_time(createStartTime)):
-            filters.append(Appraisal.created_at >= start_t * 1000)
-        if createEndTime and (end_t := parse_time(createEndTime)):
-            filters.append(Appraisal.created_at <= end_t * 1000)
+        if createStartTime :#and (start_t := parse_time(createStartTime))
+            filters.append(Appraisal.created_at >= createStartTime)
+        if createEndTime :#and (end_t := parse_time(createEndTime))
+            filters.append(Appraisal.created_at <= createEndTime)
             
         # 更新时间范围过滤
-        if updateStartTime and (start_t := parse_time(updateStartTime)):
-            filters.append(Appraisal.updated_at >= start_t * 1000)
-        if updateEndTime and (end_t := parse_time(updateEndTime)):
-            filters.append(Appraisal.updated_at <= end_t * 1000)
+        if updateStartTime :#and (start_t := parse_time(updateStartTime))
+            filters.append(Appraisal.updated_at >= updateStartTime)
+        if updateEndTime: # and (end_t := parse_time(updateEndTime))
+            filters.append(Appraisal.updated_at <= updateEndTime)
         # 鉴定师过滤 - 查询最后提交鉴定结果的鉴定师
         if lastAppraiserId:
             filters.append(Appraisal.last_appraiser_id == lastAppraiserId)
