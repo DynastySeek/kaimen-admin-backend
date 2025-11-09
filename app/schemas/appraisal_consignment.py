@@ -10,6 +10,7 @@ class AppraisalConsignmentItem(BaseModel):
     desc: Optional[str] = None
     phone: Optional[str] = None
     user_phone: Optional[str] = None
+    wechat_id: Optional[str] = None
     expected_price: Optional[Decimal] = None
     is_del: Optional[str] = None
     images: List[str] = []

@@ -38,8 +38,11 @@ class AppraisalService:
         createEndTime: Optional[str] = None,
         updateStartTime: Optional[str] = None,
         updateEndTime: Optional[str] = None,
+        wechatId: Optional[str] = None,
+        appraisalBusinessType: Optional[str] = None,
         lastAppraiserId: Optional[int] = None,
         userPhone: Optional[str] = None,
+        phone: Optional[str] = None,
         appraisalResult: Optional[str] = None,
         session: Session = Depends(get_session)
     ):
@@ -55,6 +58,12 @@ class AppraisalService:
             filters.append(Appraisal.first_class == firstClass)
         if appraisalStatus:
             filters.append(Appraisal.appraisal_status == appraisalStatus)
+        if wechatId:
+            filters.append(Appraisal.wechat_id.contains(wechatId))
+        if appraisalBusinessType:
+            filters.append(Appraisal.appraisal_business_type == appraisalBusinessType)
+        if phone:
+            filters.append(Appraisal.phone.contains(phone))
 
         def parse_time(ts: Optional[str]) -> Optional[int]:
             try:
@@ -201,8 +210,9 @@ class AppraisalService:
                 "appraisal_status": a.appraisal_status or "",
                 "first_class": a.first_class or "",
                 "fine_class": a.fine_class or 0,
-                "appraisal_business_type": a.appraisal_business_type or "",
-                "wechat_id": a.wechat_id or None,  
+                "phone": a.phone or None,
+                "appraisalBusinessType": a.appraisal_business_type or "",
+                "wechatId": a.wechat_id or None,  
                 "images": images,
                 "videos": videos,
                 "create_time": a.created_at,
