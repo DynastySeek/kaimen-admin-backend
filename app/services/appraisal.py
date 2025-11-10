@@ -122,6 +122,16 @@ class AppraisalService:
             .offset((page - 1) * pageSize)
             .limit(pageSize)
         )
+
+        # 获取总数
+        #count_stmt = select(func.count()).select_from(Appraisal).where(and_(*filters))
+        #total = session.exec(count_stmt).one()
+        
+        # 获取fine_class总和
+        sum_stmt = select(func.sum(Appraisal.fine_class)).where(and_(*filters))
+        done = session.exec(sum_stmt).one() or 0
+        
+
         appraisals = session.exec(stmt).all()
 
         # 批量查询优化：收集所有需要的ID
@@ -169,7 +179,7 @@ class AppraisalService:
                 appraiser_map[appraiser.id] = appraiser
 
         result_list = []
-        done=0
+        
         for a in appraisals:
             # 从缓存中获取资源
             resources = resources_map.get(a.id, [])
@@ -207,7 +217,7 @@ class AppraisalService:
                     "name": last_appraiser.name,
                     "nickname": last_appraiser.nickname,
                 }
-            done=done+int(a.fine_class or 0)
+      
             result_list.append({
                 "appraisal_id": a.id,
                 "title": a.title or "",
