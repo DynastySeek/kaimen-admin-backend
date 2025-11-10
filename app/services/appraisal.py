@@ -33,6 +33,7 @@ class AppraisalService:
         appraisalId: Optional[str] = None,
         title: Optional[str] = None,
         firstClass: Optional[str] = None,
+        fineClass: Optional[int] = None,
         appraisalStatus: Optional[str] = None,
         createStartTime: Optional[str] = None,
         createEndTime: Optional[str] = None,
@@ -56,6 +57,8 @@ class AppraisalService:
             filters.append(Appraisal.title.contains(title))
         if firstClass:
             filters.append(Appraisal.first_class == firstClass)
+        if fineClass is not None:
+            filters.append(Appraisal.fine_class == fineClass)
         if appraisalStatus:
             filters.append(Appraisal.appraisal_status == appraisalStatus)
         if wechatId:
