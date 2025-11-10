@@ -39,6 +39,7 @@ class AppraisalService:
         createEndTime: Optional[str] = None,
         updateStartTime: Optional[str] = None,
         updateEndTime: Optional[str] = None,
+        desc: Optional[str] = None,
         wechatId: Optional[str] = None,
         appraisalBusinessType: Optional[str] = None,
         lastAppraiserId: Optional[int] = None,
@@ -63,6 +64,8 @@ class AppraisalService:
             filters.append(Appraisal.appraisal_status == appraisalStatus)
         if wechatId:
             filters.append(Appraisal.wechat_id.contains(wechatId))
+        if desc:
+            filters.append(Appraisal.desc.contains(desc))
         if appraisalBusinessType:
             filters.append(Appraisal.appraisal_business_type == appraisalBusinessType)
         if phone:
