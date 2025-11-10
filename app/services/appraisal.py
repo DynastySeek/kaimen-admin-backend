@@ -169,7 +169,7 @@ class AppraisalService:
                 appraiser_map[appraiser.id] = appraiser
 
         result_list = []
-
+        done=0
         for a in appraisals:
             # 从缓存中获取资源
             resources = resources_map.get(a.id, [])
@@ -207,7 +207,7 @@ class AppraisalService:
                     "name": last_appraiser.name,
                     "nickname": last_appraiser.nickname,
                 }
-
+            done=done+int(a.fine_class or 0)
             result_list.append({
                 "appraisal_id": a.id,
                 "title": a.title or "",
@@ -228,12 +228,13 @@ class AppraisalService:
                 "last_appraisal_result": last_appraisal_result_data,
                 "last_appraiser": last_appraiser_data,
             })
-
+           
         return success_response(data={
             "list": result_list,
             "total": total,
             "page": page,
-            "pageSize": pageSize
+            "pageSize": pageSize,
+            "done": done
         })
 
     @staticmethod
