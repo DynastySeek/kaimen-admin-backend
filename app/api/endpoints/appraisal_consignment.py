@@ -23,6 +23,7 @@ def get_appraisal_consignment_list(
     maxExpectedPrice: Optional[float] = Query(None, description="最高心理价位"),
     userPhone: Optional[str] = Query(None, regex=r'^1[3-9]\d{9}$', description="用户登录授权手机号，必须是11位有效手机号"),
     phone: Optional[str] = Query(None, description="用户填写联系方式"),
+    wechatId: Optional[str] = Query(None, description="微信id"),
     createStartTime: Optional[str] = None,
     createEndTime: Optional[str] = None,
     session: Session = Depends(get_session)
@@ -38,6 +39,7 @@ def get_appraisal_consignment_list(
             maxExpectedPrice=maxExpectedPrice,
             userPhone=userPhone,
             phone=phone,
+            wechatId=wechatId,
             createStartTime=createStartTime,
             createEndTime=createEndTime,
             session=session

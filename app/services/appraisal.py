@@ -33,13 +33,18 @@ class AppraisalService:
         appraisalId: Optional[str] = None,
         title: Optional[str] = None,
         firstClass: Optional[str] = None,
+        fineClass: Optional[int] = None,
         appraisalStatus: Optional[str] = None,
         createStartTime: Optional[str] = None,
         createEndTime: Optional[str] = None,
         updateStartTime: Optional[str] = None,
         updateEndTime: Optional[str] = None,
+        desc: Optional[str] = None,
+        wechatId: Optional[str] = None,
+        appraisalBusinessType: Optional[str] = None,
         lastAppraiserId: Optional[int] = None,
         userPhone: Optional[str] = None,
+        phone: Optional[str] = None,
         appraisalResult: Optional[str] = None,
         session: Session = Depends(get_session)
     ):
@@ -53,8 +58,18 @@ class AppraisalService:
             filters.append(Appraisal.title.contains(title))
         if firstClass:
             filters.append(Appraisal.first_class == firstClass)
+        if fineClass is not None:
+            filters.append(Appraisal.fine_class == fineClass)
         if appraisalStatus:
             filters.append(Appraisal.appraisal_status == appraisalStatus)
+        if wechatId:
+            filters.append(Appraisal.wechat_id.contains(wechatId))
+        if desc:
+            filters.append(Appraisal.desc.contains(desc))
+        if appraisalBusinessType:
+            filters.append(Appraisal.appraisal_business_type == appraisalBusinessType)
+        if phone:
+            filters.append(Appraisal.phone.contains(phone))
 
         def parse_time(ts: Optional[str]) -> Optional[int]:
             try:
@@ -63,16 +78,16 @@ class AppraisalService:
                 return None
 
         # 创建时间范围过滤
-        if createStartTime and (start_t := parse_time(createStartTime)):
-            filters.append(Appraisal.created_at >= start_t * 1000)
-        if createEndTime and (end_t := parse_time(createEndTime)):
-            filters.append(Appraisal.created_at <= end_t * 1000)
+        if createStartTime :#and (start_t := parse_time(createStartTime))
+            filters.append(Appraisal.created_at >= createStartTime)
+        if createEndTime :#and (end_t := parse_time(createEndTime))
+            filters.append(Appraisal.created_at <= createEndTime)
             
         # 更新时间范围过滤
-        if updateStartTime and (start_t := parse_time(updateStartTime)):
-            filters.append(Appraisal.updated_at >= start_t * 1000)
-        if updateEndTime and (end_t := parse_time(updateEndTime)):
-            filters.append(Appraisal.updated_at <= end_t * 1000)
+        if updateStartTime :#and (start_t := parse_time(updateStartTime))
+            filters.append(Appraisal.updated_at >= updateStartTime)
+        if updateEndTime: # and (end_t := parse_time(updateEndTime))
+            filters.append(Appraisal.updated_at <= updateEndTime)
         # 鉴定师过滤 - 查询最后提交鉴定结果的鉴定师
         if lastAppraiserId:
             filters.append(Appraisal.last_appraiser_id == lastAppraiserId)
@@ -107,6 +122,13 @@ class AppraisalService:
             .offset((page - 1) * pageSize)
             .limit(pageSize)
         )
+
+        
+        # 获取fine_class总和
+        sum_stmt = select(func.sum(Appraisal.fine_class)).where(and_(*filters))
+        done = session.exec(sum_stmt).one() or 0
+        
+
         appraisals = session.exec(stmt).all()
 
         # 批量查询优化：收集所有需要的ID
@@ -154,7 +176,7 @@ class AppraisalService:
                 appraiser_map[appraiser.id] = appraiser
 
         result_list = []
-
+        
         for a in appraisals:
             # 从缓存中获取资源
             resources = resources_map.get(a.id, [])
@@ -192,7 +214,7 @@ class AppraisalService:
                     "name": last_appraiser.name,
                     "nickname": last_appraiser.nickname,
                 }
-
+      
             result_list.append({
                 "appraisal_id": a.id,
                 "title": a.title or "",
@@ -200,21 +222,27 @@ class AppraisalService:
                 "description": a.desc or "",
                 "appraisal_status": a.appraisal_status or "",
                 "first_class": a.first_class or "",
+                "fine_class": a.fine_class or 0,
+                "phone": a.phone or None,
+                "appraisalBusinessType": a.appraisal_business_type or "",
+                "wechatId": a.wechat_id or None,  
                 "images": images,
                 "videos": videos,
                 "create_time": a.created_at,
+                "update_time": a.updated_at,
                 "appraisal_result": a.appraisal_result,
                 "last_appraiser_id": a.last_appraiser_id,
                 "last_appraisal_result_id": a.last_appraisal_result_id,
                 "last_appraisal_result": last_appraisal_result_data,
                 "last_appraiser": last_appraiser_data,
             })
-
+           
         return success_response(data={
             "list": result_list,
             "total": total,
             "page": page,
-            "pageSize": pageSize
+            "pageSize": pageSize,
+            "done": done
         })
 
     @staticmethod
@@ -245,7 +273,8 @@ class AppraisalService:
                     appraisal.appraisal_status = str(item.appraisal_status)
                 if item.appraisal_class is not None:
                     appraisal.first_class = str(item.appraisal_class)
-                
+                if item.fine_class is not None:
+                    appraisal.fine_class = int(item.fine_class)
                 session.add(appraisal)
                 success_count += 1
                 
@@ -365,7 +394,15 @@ class AppraisalService:
                 appraisal.last_appraiser_id = current_user.id
                 appraisal.last_appraisal_result_id = result.id
                 appraisal.appraisal_result = item.appraisalResult
-                appraisal.appraisal_status = "3"  # 添加鉴定结果后自动设置为已完成状态
+                
+                # 根据鉴定结果设置相应的状态
+                # 0 暂无提交
+                # 1=真, 2=假 -> 状态3=已完结
+                # 3=存疑 -> 状态4=待完善
+                if item.appraisalResult == "1" or item.appraisalResult == "2":
+                    appraisal.appraisal_status = "3"  # 已完结
+                elif item.appraisalResult == "3":
+                    appraisal.appraisal_status = "4"  # 待完善
                 
                 session.add(appraisal)
                 success_count += 1
@@ -379,10 +416,10 @@ class AppraisalService:
                         new_status=appraisal.appraisal_status
                     )
                 
-                # 检测状态是否变更为已完结，如果是则发送短信通知
-                if old_status != appraisal.appraisal_status and appraisal.appraisal_status == "3":
+                # 检测状态是否变更为需要通知的状态（3=已完结, 4=待完善, 5=已退回），如果是则发送短信通知
+                if old_status != appraisal.appraisal_status and appraisal.appraisal_status in ["3", "4", "5"]:
                     logger.info(
-                        f"检测到状态变更为已完结: 订单ID={item.appraisalId}, "
+                        f"检测到状态变更为需要通知的状态: 订单ID={item.appraisalId}, "
                         f"旧状态={old_status}, 新状态={appraisal.appraisal_status}"
                     )
                     

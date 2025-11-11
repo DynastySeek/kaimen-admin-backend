@@ -18,6 +18,7 @@ class AppraisalConsignment(SQLModel, table=True):
     type: Optional[str] = Field(default=None, max_length=64, description="求购类型")
     desc: Optional[str] = Field(default=None, max_length=256, description="求购描述")
     phone: Optional[str] = Field(default=None, max_length=64, description="手机号")
+    wechat_id: Optional[str] = Field(default=None, max_length=128, description="微信号")
     expected_price: Optional[Decimal] = Field(default=None, max_digits=10, decimal_places=2, description="预期价格")
     is_del: Optional[str] = Field(default=None, max_length=64, description="是否删除")
     created_at: Optional[datetime] = Field(default_factory=datetime.now, description="创建时间")

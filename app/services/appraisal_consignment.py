@@ -23,6 +23,7 @@ class AppraisalConsignmentService:
         maxExpectedPrice: Optional[float] = None,
         userPhone: Optional[str] = None,
         phone: Optional[str] = None,
+        wechatId: Optional[str] = None,
         createStartTime: Optional[str] = None,
         createEndTime: Optional[str] = None,
         session: Session = Depends(get_session)
@@ -55,6 +56,8 @@ class AppraisalConsignmentService:
                 filters.append(AppraisalConsignment.id == -1)
         if phone:
             filters.append(AppraisalConsignment.phone.contains(phone))
+        if wechatId:
+            filters.append(AppraisalConsignment.wechat_id.contains(wechatId))
         
         def parse_time(ts: Optional[str]) -> Optional[datetime]:
             if not ts:
@@ -138,6 +141,7 @@ class AppraisalConsignmentService:
                 user_phone=user_info.phone if user_info else None,
                 expected_price=item.expected_price,
                 is_del=item.is_del,
+                wechat_id=item.wechat_id,
                 images=images,
                 videos=videos,
                 created_at=item.created_at,
