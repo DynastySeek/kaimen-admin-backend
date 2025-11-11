@@ -123,9 +123,6 @@ class AppraisalService:
             .limit(pageSize)
         )
 
-        # 获取总数
-        #count_stmt = select(func.count()).select_from(Appraisal).where(and_(*filters))
-        #total = session.exec(count_stmt).one()
         
         # 获取fine_class总和
         sum_stmt = select(func.sum(Appraisal.fine_class)).where(and_(*filters))
@@ -232,6 +229,7 @@ class AppraisalService:
                 "images": images,
                 "videos": videos,
                 "create_time": a.created_at,
+                "update_time": a.updated_at,
                 "appraisal_result": a.appraisal_result,
                 "last_appraiser_id": a.last_appraiser_id,
                 "last_appraisal_result_id": a.last_appraisal_result_id,
