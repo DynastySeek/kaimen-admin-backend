@@ -223,6 +223,7 @@ class AppraisalService:
                 "appraisal_status": a.appraisal_status or "",
                 "first_class": a.first_class or "",
                 "fine_class": a.fine_class or 0,
+                "fine_tips": a.fine_tips or 0,
                 "phone": a.phone or None,
                 "appraisalBusinessType": a.appraisal_business_type or "",
                 "wechatId": a.wechat_id or None,  
@@ -275,6 +276,9 @@ class AppraisalService:
                     appraisal.first_class = str(item.appraisal_class)
                 if item.fine_class is not None:
                     appraisal.fine_class = int(item.fine_class)
+                if item.fine_tips is not None:
+                    appraisal.fine_tips = int(item.fine_tips)
+                
                 session.add(appraisal)
                 success_count += 1
                 
