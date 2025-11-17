@@ -274,11 +274,19 @@ class AppraisalService:
                     appraisal.appraisal_status = str(item.appraisal_status)
                 if item.appraisal_class is not None:
                     appraisal.first_class = str(item.appraisal_class)
-                if item.fine_class is not None:
-                    appraisal.fine_class = int(item.fine_class)
-                if item.fine_tips is not None:
-                    appraisal.fine_tips = int(item.fine_tips)
-                
+                if (item.fine_class is not None) and (item.fine_class == 1):
+                    if appraisal.fine_class==0:
+                        appraisal.fine_class = int(item.fine_class)                    
+                        if item.fine_tips is not None:
+                            appraisal.fine_tips = int(item.fine_tips)
+                            # 查询用户
+                            user_info = session.exec(
+                                select(UserInfo).where(UserInfo.id == appraisal.userinfo_id)
+                            ).first()
+                            
+                            if user_info :
+                                user_info.remain_tips +=  Decimal(appraisal.fine_tips)
+                                session.add(user_info)
                 session.add(appraisal)
                 success_count += 1
                 
@@ -299,9 +307,9 @@ class AppraisalService:
                     )
                     
                     # 查询用户手机号
-                    user_info = session.exec(
-                        select(UserInfo).where(UserInfo.id == appraisal.userinfo_id)
-                    ).first()
+                   # user_info = session.exec(
+                    #    select(UserInfo).where(UserInfo.id == appraisal.userinfo_id)
+                   # ).first()
                     
                     if user_info and user_info.phone:
                         # 使用延迟发送管理器

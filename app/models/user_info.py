@@ -4,7 +4,7 @@
 from sqlmodel import SQLModel, Field, Column, String
 from typing import Optional
 from datetime import datetime
-
+from decimal import Decimal
 
 class UserInfo(SQLModel, table=True):
     """用户信息模型"""
@@ -14,4 +14,5 @@ class UserInfo(SQLModel, table=True):
     phone: Optional[str] = None
     created_at: Optional[datetime] = Field(default=None, sa_column=Column("created_at"))
     nick_name: Optional[str] = None    
+    remain_tips: Optional[Decimal] = Decimal('0.0')
    

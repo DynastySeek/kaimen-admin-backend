@@ -29,4 +29,5 @@ class Appraisal(SQLModel, table=True):
     phone: Optional[str] = None
     wechat_id: Optional[str] = None
     fine_tips: Optional[int] = 0
+
     resources: List["AppraisalResource"] = Relationship(back_populates="appraisal")
