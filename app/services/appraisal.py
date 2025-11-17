@@ -285,7 +285,7 @@ class AppraisalService:
                             ).first()
                             
                             if user_info :
-                                user_info.remain_tips +=  Decimal(appraisal.fine_tips)
+                                user_info.remain_tips +=  appraisal.fine_tips
                                 session.add(user_info)
                 session.add(appraisal)
                 success_count += 1
