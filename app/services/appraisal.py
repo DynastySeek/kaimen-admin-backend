@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 import logging
 
 from app.models.appraisal import Appraisal
+from app.models.gold_exchange import GoldExchange
+from decimal import Decimal
 from app.models.appraisal_resource import AppraisalResource
 from app.models.appraisal_result import AppraisalResult
 from app.models.user_info import UserInfo
@@ -285,6 +287,16 @@ class AppraisalService:
                             ).first()
                             
                             if user_info :
+                                # 创建精品打赏记录
+                                gold_exchange = GoldExchange(
+                                    type=2,
+                                    userinfo_id=user_info.id,
+                                    remain_tips=appraisal.fine_tips,
+                                    gold_gram=Decimal('0.0'),
+                                    gold_price=Decimal('0.0')
+                                )
+                                session.add(gold_exchange)
+
                                 user_info.remain_tips +=  appraisal.fine_tips
                                 session.add(user_info)
                 session.add(appraisal)
