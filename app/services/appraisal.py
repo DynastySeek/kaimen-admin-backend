@@ -257,7 +257,10 @@ class AppraisalService:
         sms_service = get_sms_service()
         
         for item in request:
+                
             try:
+              # 使用with语句自动管理事务生命周期
+              with session.begin():
                 appraisal = session.exec(
                     select(Appraisal).where(Appraisal.id == item.id)
                 ).first()
@@ -358,7 +361,7 @@ class AppraisalService:
                     reason=str(e)
                 ))
         
-        session.commit()
+        #session.commit()
         
         return success_response(data={
             "success_count": success_count,
